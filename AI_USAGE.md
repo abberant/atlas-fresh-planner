@@ -81,11 +81,11 @@ implemented the milestones and reported what it checked.
 
 ## Time spent
 
-_Abdellah to fill in before sending._
+**12 hours in total**, which is the upper end of the 10 to 12 hour time box in the brief.
 
-No time is estimated in this file. An earlier version carried a per milestone table of
-hours that Claude Code had guessed rather than measured, and it was wrong, so it was
-removed.
+This is the figure Abdellah reported. No time is estimated in this file. An earlier
+version carried a per milestone table of hours that Claude Code had guessed rather than
+measured, and it was wrong, so it was removed.
 
 ## Intentional omissions
 
