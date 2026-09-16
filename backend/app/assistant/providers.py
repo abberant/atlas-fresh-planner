@@ -21,7 +21,7 @@ Rules:
 - Never write a number that is not present in the context.
 - Never mention a farm, client or segment id that is not present in the context.
 - Cite the ids you used, for example "C02", "F01" or "Segment A".
-- Answer in 3 to 6 short sentences, in plain business English, for a manager.
+- Answer in 3 to 4 short sentences at most, in plain business English, for a manager.
 - Never use field names or codes from the context. Write "short 10 tonnes", not
   "shortfall_t of 10", and "there was not enough Segment A", not
   "INSUFFICIENT_COMPATIBLE_SEGMENT".

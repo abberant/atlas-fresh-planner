@@ -23,17 +23,15 @@ export default function KpiCard({
   size = 'lead',
 }: KpiCardProps) {
   const lead = size === 'lead'
-  const attention = tone === 'attention'
 
   return (
     <div
       className={[
-        'rounded-lg border bg-white',
+        'rounded-lg border border-slate-200 bg-white',
         lead ? 'p-4 shadow-sm' : 'p-3.5',
-        attention ? 'border-rose-300 border-l-4 border-l-rose-600' : 'border-slate-200',
       ].join(' ')}
     >
-      <div className="flex items-baseline gap-2">
+      <div className="flex flex-wrap items-baseline gap-2">
         <p
           className={[
             'font-semibold uppercase tracking-wide',
@@ -42,11 +40,7 @@ export default function KpiCard({
         >
           {label}
         </p>
-        {attention ? (
-          <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[11px] font-semibold text-rose-900">
-            <span aria-hidden="true">!</span> Needs attention
-          </span>
-        ) : null}
+        {tone === 'attention' ? <AttentionBadge>Needs attention</AttentionBadge> : null}
       </div>
 
       <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
@@ -67,5 +61,15 @@ export default function KpiCard({
         </div>
       ) : null}
     </div>
+  )
+}
+
+/** Status is carried by words and a mark, never by colour on its own. */
+export function AttentionBadge({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded bg-rose-100 px-1.5 py-0.5 text-[11px] font-semibold text-rose-900">
+      <span aria-hidden="true">!</span>
+      {children}
+    </span>
   )
 }

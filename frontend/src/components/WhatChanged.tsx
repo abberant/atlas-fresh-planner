@@ -1,8 +1,15 @@
-import type { FarmComparison, PlanResult, Segment, SegmentComparison } from '../api/types'
+import type {
+  FarmComparison,
+  PlanResult,
+  ResidualRow,
+  Segment,
+  SegmentComparison,
+} from '../api/types'
 import { formatEur, formatPercent, formatSignedTonnes, formatTonnes, varianceMark } from '../lib/format'
 import type { EntityKind, Selection } from '../lib/selection'
 import { localReason } from '../lib/summary'
 import IdLink from './IdLink'
+import { AttentionBadge } from './KpiCard'
 
 const MAX_FARMS_SHOWN = 3
 
@@ -36,6 +43,7 @@ function SegmentCard({
   row,
   hits,
   farms,
+  residuals,
   localReason,
   selection,
   onSelect,
@@ -43,6 +51,7 @@ function SegmentCard({
   row: SegmentComparison
   hits: Hit[]
   farms: FarmComparison[]
+  residuals: ResidualRow[]
   localReason: string
   selection: Selection
   onSelect: (kind: EntityKind, id: string) => void
@@ -50,25 +59,24 @@ function SegmentCard({
   const mark = varianceMark(row.variance_t)
   const below = farmsBelowPlan(farms, row.segment)
   const shown = below.slice(0, MAX_FARMS_SHOWN)
-  const attention = hits.length > 0 || row.local_t > 0
+  const goingLocal = row.local_t > 0
 
   return (
-    <article
-      className={[
-        'rounded-lg border bg-white p-4',
-        attention ? 'border-rose-300 border-l-4 border-l-rose-600' : 'border-slate-200',
-      ].join(' ')}
-    >
-      <h4 className="text-base font-semibold text-slate-900">
-        <IdLink
-          kind="segment"
-          id={row.segment}
-          onSelect={onSelect}
-          active={selection.segment === row.segment}
-        >
-          Segment {row.segment}
-        </IdLink>
-      </h4>
+    <article className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h4 className="text-base font-semibold text-slate-900">
+          <IdLink
+            kind="segment"
+            id={row.segment}
+            onSelect={onSelect}
+            active={selection.segment === row.segment}
+          >
+            Segment {row.segment}
+          </IdLink>
+        </h4>
+        {hits.length > 0 ? <AttentionBadge>Client short</AttentionBadge> : null}
+        {goingLocal ? <AttentionBadge>Going local</AttentionBadge> : null}
+      </div>
 
       <p className="mt-1 text-sm font-medium text-slate-800">
         {formatSignedTonnes(row.variance_t)} <span aria-hidden="true">{mark.arrow}</span> {mark.label}
@@ -107,7 +115,27 @@ function SegmentCard({
         )}
       </div>
 
-      {shown.length > 0 ? (
+      {goingLocal ? (
+        <div className="mt-3 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Going local
+          </p>
+          <p className="mt-1 text-slate-800">
+            {residuals.map((residual, index) => (
+              <span key={residual.farm_id}>
+                {index > 0 ? ', ' : ''}
+                <IdLink
+                  kind="farm"
+                  id={residual.farm_id}
+                  onSelect={onSelect}
+                  active={selection.farmId === residual.farm_id}
+                />{' '}
+                {formatTonnes(residual.tonnes)}
+              </span>
+            ))}
+          </p>
+        </div>
+      ) : shown.length > 0 ? (
         <div className="mt-3 text-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Farms below plan
@@ -150,13 +178,12 @@ function CapacityCard({
   const residualFarms = plan.residuals
 
   return (
-    <article
-      className={[
-        'rounded-lg border bg-white p-4',
-        hits.length > 0 ? 'border-rose-300 border-l-4 border-l-rose-600' : 'border-slate-200',
-      ].join(' ')}
-    >
-      <h4 className="text-base font-semibold text-slate-900">Station capacity</h4>
+    <article className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h4 className="text-base font-semibold text-slate-900">Station capacity</h4>
+        {hits.length > 0 ? <AttentionBadge>Client short</AttentionBadge> : null}
+        {residualFarms.length > 0 ? <AttentionBadge>Going local</AttentionBadge> : null}
+      </div>
       <p className="mt-1 text-sm font-medium text-slate-800">
         {formatTonnes(kpis.export_volume_t)} packed of {formatTonnes(kpis.station_capacity_t)} (
         {formatPercent(kpis.station_utilization)}
@@ -250,6 +277,7 @@ export default function WhatChanged({ plan, selection, onSelect }: WhatChangedPr
             row={row}
             hits={hitsBySegment.get(row.segment) ?? []}
             farms={plan.farm_comparison}
+            residuals={plan.residuals.filter((residual) => residual.segment === row.segment)}
             localReason={reasonForLocal}
             selection={selection}
             onSelect={onSelect}

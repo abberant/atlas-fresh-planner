@@ -87,7 +87,7 @@ export default function CommercialView({ plan, selection, onSelect }: Commercial
                       onSelect={onSelect}
                       active={selected}
                     />
-                    <span className="block text-xs text-slate-600">{client.client_name}</span>
+                    <span className="block whitespace-nowrap text-xs text-slate-600">{client.client_name}</span>
                     {selected ? <span className="sr-only"> (selected)</span> : null}
                   </td>
                   <td className="px-3 py-2">
@@ -105,7 +105,9 @@ export default function CommercialView({ plan, selection, onSelect }: Commercial
                   <td className="px-3 py-2 text-right tabular-nums">
                     {client.remaining_t > 0 ? formatTonnes(client.remaining_t) : '–'}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatEur(client.revenue_eur)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                    {formatEur(client.revenue_eur)}
+                  </td>
                   <td className="px-3 py-2">
                     <StatusBadge status={client.status} />
                   </td>
@@ -136,7 +138,7 @@ export default function CommercialView({ plan, selection, onSelect }: Commercial
               <td className="px-3 py-2 text-right tabular-nums">
                 {formatTonnes(plan.clients.reduce((sum, c) => sum + c.remaining_t, 0))}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {formatEur(plan.kpis.export_revenue_eur)}
               </td>
               <td className="px-3 py-2" colSpan={2}>
