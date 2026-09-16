@@ -5,9 +5,15 @@
  * a bad workbook, a server problem, a network problem or a timeout.
  */
 
-import type { PlanResponse, ValidationIssue } from './types'
+import type { AssistantResponse, PlanResponse, QuestionId, ValidationIssue } from './types'
 
-export type ApiErrorKind = 'validation' | 'server' | 'network' | 'timeout' | 'bad_request'
+export type ApiErrorKind =
+  | 'validation'
+  | 'server'
+  | 'network'
+  | 'timeout'
+  | 'bad_request'
+  | 'plan_expired'
 
 const DEFAULT_TIMEOUT_MS = 20_000
 
@@ -63,10 +69,30 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
   if (response.status === 422) {
     throw new ApiError('bad_request', body.message ?? 'The request was not understood.')
   }
+  if (response.status === 404 && body.error === 'PLAN_NOT_FOUND') {
+    throw new ApiError('plan_expired', body.message ?? 'This plan is no longer in memory.')
+  }
   throw new ApiError('server', body.message ?? 'Something went wrong on the server.')
 }
 
 /** Load today's workbook from the server and build the plan. */
 export function loadSeedPlan(): Promise<PlanResponse> {
   return request<PlanResponse>('/api/plan/seed', { method: 'POST' })
+}
+
+/** Ask the read only assistant about a plan the server still has in memory. */
+export function askAssistant(
+  planId: string,
+  question: { questionId: QuestionId } | { questionText: string },
+): Promise<AssistantResponse> {
+  const payload =
+    'questionId' in question
+      ? { plan_id: planId, question_id: question.questionId }
+      : { plan_id: planId, question_text: question.questionText }
+
+  return request<AssistantResponse>('/api/assistant/ask', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }

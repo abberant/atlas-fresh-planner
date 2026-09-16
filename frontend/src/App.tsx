@@ -20,6 +20,7 @@ import {
   type TabId,
 } from './lib/selection'
 import AllocationsView from './views/AllocationsView'
+import AssistantPanel from './views/AssistantPanel'
 import CommercialView from './views/CommercialView'
 import ProductionView from './views/ProductionView'
 
@@ -99,6 +100,7 @@ export default function App() {
   const clearFilters = useCallback(() => setSelection(NO_SELECTION), [])
 
   const loading = status === 'loading'
+  const showWorkspace = response !== null && status !== 'invalid'
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -116,7 +118,14 @@ export default function App() {
           {message}
         </p>
 
-        <div className="space-y-6">
+        <div
+          className={
+            showWorkspace
+              ? 'xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start xl:gap-6'
+              : undefined
+          }
+        >
+          <div className="space-y-6">
           {status === 'idle' ? <EmptyState onLoad={load} /> : null}
 
           {loading && !response ? <LoadingSkeleton /> : null}
@@ -187,6 +196,18 @@ export default function App() {
                 </Tabs>
               </section>
             </>
+          ) : null}
+          </div>
+
+          {showWorkspace && response ? (
+            <aside className="mt-6 xl:sticky xl:top-28 xl:mt-0">
+              <AssistantPanel
+                planId={response.plan_id}
+                plan={response.plan}
+                selection={selection}
+                onSelect={handleSelect}
+              />
+            </aside>
           ) : null}
         </div>
       </main>

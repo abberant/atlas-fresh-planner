@@ -243,7 +243,7 @@ export default function WhatChanged({ plan, selection, onSelect }: WhatChangedPr
         Each quality segment against plan, and the clients that feel the gap.
       </p>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         {plan.segment_comparison.map((row) => (
           <SegmentCard
             key={row.segment}

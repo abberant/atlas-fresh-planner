@@ -182,3 +182,27 @@ export interface Health {
   ai_provider: 'none' | 'anthropic' | 'ollama'
   ai_configured: boolean
 }
+
+// ------------------------------------------------------------------ assistant
+
+export type QuestionId = 'at_risk_clients' | 'segment_gaps' | 'local_residual'
+export type AssistantMode = 'ai' | 'deterministic_summary' | 'unavailable' | 'error'
+export type AssistantErrorCode = 'NO_KEY' | 'TIMEOUT' | 'PROVIDER_ERROR' | 'INVALID_OUTPUT'
+export type CitationType = 'farm' | 'client' | 'segment'
+
+export interface Citation {
+  id: string
+  type: CitationType
+}
+
+export interface AssistantResponse {
+  mode: AssistantMode
+  provider: 'anthropic' | 'ollama' | 'none'
+  answer: string
+  citations: Citation[]
+  error_code: AssistantErrorCode | null
+  question_id: QuestionId | null
+  /** The engine summary, offered when an AI answer could not be shown. Never labelled AI. */
+  fallback_answer: string | null
+  fallback_citations: Citation[]
+}

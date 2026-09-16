@@ -61,6 +61,7 @@ randomness. The same input always gives the same output, byte for byte.
 |---|---|---|
 | GET | `/api/health` | status and whether an AI provider is configured |
 | POST | `/api/plan/seed` | read the workbook at `DATA_PATH`, validate it, return `{plan_id, source_file, source, plan}` |
+| POST | `/api/assistant/ask` | explain one part of a plan the server still holds, or answer honestly that it cannot |
 
 Errors always come back in one small shape and never carry a stack trace:
 `422 {"error": "VALIDATION_FAILED", "errors": [...]}` for a bad workbook,
@@ -107,11 +108,53 @@ fails the server answers with an error instead of a plan.
   surrounding rows are what explains the result, for example that C03 and C04 took the
   Segment B before C09, so hiding them would remove the answer. In Allocations the list
   is long and flat, so filtering is the useful action there.
+- The assistant response carries two extra fields beyond the shape in the brief,
+  `fallback_answer` and `fallback_citations`. When a model answer cannot be shown, the
+  engine summary travels with the error so the screen can offer it without asking the
+  server again. `answer` stays empty in that case, so nothing unchecked can be shown as
+  an AI answer by mistake.
 - Timing and the "Loaded at" line live in the UI and in a response header, never inside
   the plan body, so the plan stays byte for byte deterministic.
 - The kit workbook arrived as `brief.xlsx` and was renamed to
   `Atlas_Fresh_Production_Commercial_Data.xlsx`, the name the brief uses. Its contents
   were not touched and it is always opened read only.
+
+## The assistant
+
+The assistant only explains a plan the engine already produced. It never changes an
+allocation, never calculates a number and never confirms anything. It answers three
+questions: which clients are at risk and why, which farm and segment gaps matter most,
+and why tonnes go to the local market and what they are worth. Anything else gets
+"This information is not available in today's inputs or plan."
+
+Before an answer reaches the screen the server checks it: the JSON must parse, every
+farm, client and segment id in the text and in the citations must exist in the plan,
+every number must be present in the small context that was sent, and a supported answer
+must cite at least one id. A single failure rejects the whole answer, and the screen says
+so instead of showing it.
+
+Every state is labelled honestly. "AI answer, checked against the plan" appears only on
+validated model output. A summary written by the planning engine is always labelled
+"Summary from the planning engine, no AI".
+
+### Turning the AI on
+
+It is off by default and the app is complete without it.
+
+Free and local, with [Ollama](https://ollama.com):
+
+```
+ollama pull llama3.1
+cp .env.example .env      # then set AI_PROVIDER=ollama
+```
+
+With an Anthropic key:
+
+```
+cp .env.example .env      # then set AI_PROVIDER=anthropic and ANTHROPIC_API_KEY
+```
+
+`AI_TIMEOUT_SECONDS` (20 by default) bounds every call. `.env` is never committed.
 
 ## Known limitations
 

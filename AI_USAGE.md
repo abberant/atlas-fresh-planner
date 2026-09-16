@@ -22,7 +22,8 @@ implemented the milestones and reported what it checked.
 | M1 ingest and validation | workbook reader with header detection, all validation codes, 27 tests | asked for strict `acceptance_mode` and `requested_segment` after seeing the first version normalise case and spaces |
 | M2 planning engine | pure engine, KPIs, comparisons, risk links, invariants, 48 tests | asked for the baseline to be proven value by value against section 7 before any UI work |
 | M3 API | plan endpoint, error handlers, plan cache, 10 tests | asked for the capacity 450 check on a temporary copy |
-| M4 workspace UI | API client, the four states, decision summary, segment impact section, the three tabs | reworked the top of the page himself in the brief he gave: order of the cards, the sentence at the top, colour rules, the "needs attention" grouping; chose to keep highlight and scroll in the tables and filters only in Allocations |
+| M4 workspace UI | API client, the four states, decision summary, segment impact section, the three tabs | reworked the top of the page himself in the brief he gave: order of the cards, the sentence at the top, colour rules, the "needs attention" grouping; chose to keep highlight and scroll in the tables and filters only in Allocations; specified the two gap lines of the planned versus actual card |
+| M5 assistant | three questions, minimal context per question, the none, Ollama and Anthropic providers, grounding checks, engine summaries, the panel and its honest states, 28 tests | asked for section 10 to be followed exactly, for citations to reuse the clickable ids, and for the panel to sit on the right at 1440 px and collapse at 1024 px |
 
 ## What was verified, and how
 
@@ -38,6 +39,14 @@ implemented the milestones and reported what it checked.
 - **The layout and the keyboard** were checked with headless Chrome at 1024 px and
   1440 px: tab keys and arrow keys, roving tabindex, panels labelled by their tab, no
   horizontal page scroll, every id a real button, every table with `th scope`.
+- **The assistant boundary** is checked by 28 tests with a fake provider and no network:
+  a grounded answer is accepted, an answer naming C99 or F42 is rejected, an invented
+  number is rejected, an answer with no citation is rejected, a timeout and a provider
+  failure stay honest, the default no key path returns the engine summary, and an
+  unsupported question never reaches a provider at all.
+- **The real HTTP path** of the Ollama provider was exercised once against a local stub
+  server, to check that a validated answer reaches the screen labelled as an AI answer,
+  and once against a dead port, to check the provider error state.
 - **Abdellah opened the app in a browser** at both widths after each UI step and gave
   the corrections that are in the commit history.
 
@@ -53,7 +62,9 @@ Approximate, measured across the working session.
 | Strict validation change | 0.25 |
 | M3 API | 0.5 |
 | M4 workspace UI, in three reviewed steps | 3.0 |
-| Total so far | about 7.25 |
+| M4 follow up, the planned versus actual card, README and this file | 0.5 |
+| M5 assistant, server and panel | 1.5 |
+| Total so far | about 9.25 |
 
 ## Intentional omissions
 

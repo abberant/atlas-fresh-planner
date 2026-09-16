@@ -32,6 +32,10 @@ class DataUnavailable(Exception):
     """The input file itself is missing or unreadable on the server."""
 
 
+class PlanNotFound(Exception):
+    """The assistant was asked about a plan that is no longer in memory."""
+
+
 class ValidationFailedResponse(BaseModel):
     error: str = "VALIDATION_FAILED"
     errors: list[ValidationIssue]
@@ -66,6 +70,12 @@ def register_error_handlers(app: FastAPI) -> None:
     async def _data_unavailable(_: Request, exc: DataUnavailable) -> JSONResponse:
         logger.error("input data unavailable: %s", exc)
         return _server_error(str(exc))
+
+    @app.exception_handler(PlanNotFound)
+    async def _plan_not_found(_: Request, exc: PlanNotFound) -> JSONResponse:
+        return JSONResponse(
+            status_code=404, content={"error": "PLAN_NOT_FOUND", "message": str(exc)}
+        )
 
     @app.exception_handler(InvariantViolation)
     async def _invariant_violation(_: Request, exc: InvariantViolation) -> JSONResponse:

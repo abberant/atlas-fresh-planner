@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.errors import register_error_handlers
+from app.api.routes_assistant import router as assistant_router
 from app.api.routes_plan import router as plan_router
 from app.config import REPO_ROOT, get_settings
 
@@ -36,6 +37,7 @@ def health() -> dict[str, object]:
 
 
 app.include_router(plan_router)
+app.include_router(assistant_router)
 
 # In production the same server also serves the built frontend. Mounted last so
 # it never shadows an /api route.
