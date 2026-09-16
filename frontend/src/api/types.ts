@@ -179,7 +179,7 @@ export interface PlanResponse {
 
 export interface Health {
   status: string
-  ai_provider: 'none' | 'anthropic' | 'ollama'
+  ai_provider: 'none' | 'gemini' | 'anthropic' | 'ollama'
   ai_configured: boolean
 }
 
@@ -197,7 +197,7 @@ export interface Citation {
 
 export interface AssistantResponse {
   mode: AssistantMode
-  provider: 'anthropic' | 'ollama' | 'none'
+  provider: 'gemini' | 'anthropic' | 'ollama' | 'none'
   answer: string
   citations: Citation[]
   error_code: AssistantErrorCode | null

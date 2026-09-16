@@ -104,6 +104,52 @@ class AnthropicProvider:
             raise ProviderError("the provider answer could not be read") from exc
 
 
+class GeminiProvider:
+    """Google AI Studio. Has a free tier, so no purchase is needed to try it."""
+
+    name = "gemini"
+
+    def __init__(self, api_key: str, model: str, timeout_seconds: int) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._timeout = timeout_seconds
+
+    def generate(self, system: str, context: dict[str, Any], question: str) -> str:
+        if not self._api_key:
+            raise ProviderNotConfigured("GEMINI_API_KEY is empty")
+        try:
+            response = httpx.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{self._model}"
+                ":generateContent",
+                timeout=self._timeout,
+                headers={"x-goog-api-key": self._api_key, "content-type": "application/json"},
+                json={
+                    "systemInstruction": {"parts": [{"text": system}]},
+                    "contents": [
+                        {"role": "user", "parts": [{"text": _user_message(context, question)}]}
+                    ],
+                    "generationConfig": {
+                        "responseMimeType": "application/json",
+                        "maxOutputTokens": 800,
+                        "temperature": 0,
+                    },
+                },
+            )
+        except httpx.TimeoutException as exc:
+            raise ProviderTimeout(str(exc)) from exc
+        except httpx.HTTPError as exc:
+            raise ProviderError(str(exc)) from exc
+
+        if response.status_code >= 400:
+            raise ProviderError(f"the provider answered with status {response.status_code}")
+
+        try:
+            parts = response.json()["candidates"][0]["content"]["parts"]
+            return "".join(part.get("text", "") for part in parts)
+        except (KeyError, IndexError, ValueError, TypeError) as exc:
+            raise ProviderError("the provider answer could not be read") from exc
+
+
 class OllamaProvider:
     """Free local path. Nothing leaves the machine."""
 
@@ -147,6 +193,10 @@ def build_provider(settings: Settings) -> Provider:
     if settings.ai_provider == "anthropic":
         return AnthropicProvider(
             settings.anthropic_api_key, settings.anthropic_model, settings.ai_timeout_seconds
+        )
+    if settings.ai_provider == "gemini":
+        return GeminiProvider(
+            settings.gemini_api_key, settings.gemini_model, settings.ai_timeout_seconds
         )
     if settings.ai_provider == "ollama":
         return OllamaProvider(settings.ollama_url, settings.ollama_model, settings.ai_timeout_seconds)

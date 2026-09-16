@@ -27,7 +27,9 @@ function presets(plan: PlanResult): Preset[] {
     { id: 'segment_gaps', label: 'Which farm and segment gaps matter most today?' },
     {
       id: 'local_residual',
-      label: `Why are ${formatTonnes(plan.kpis.local_volume_t)} going to the local market?`,
+      label:
+        `Why are ${formatTonnes(plan.kpis.local_volume_t)} going to the local market ` +
+        'and what are they worth?',
     },
   ]
 }

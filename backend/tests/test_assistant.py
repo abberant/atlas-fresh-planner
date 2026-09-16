@@ -13,6 +13,8 @@ from app.assistant.context import build_context
 from app.assistant.fallback import build_summary
 from app.assistant.grounding import GroundingError, context_numbers, validate_answer
 from app.assistant.providers import (
+    SYSTEM_PROMPT,
+    GeminiProvider,
     ProviderError,
     ProviderNotConfigured,
     ProviderTimeout,
@@ -324,3 +326,90 @@ def test_default_provider_makes_no_call() -> None:
     assert provider.name == "none"
     with pytest.raises(ProviderNotConfigured):
         provider.generate("system", {}, "question")
+
+
+# ------------------------------------------------------- hosted provider wiring
+
+
+class FakeResponse:
+    def __init__(self, status_code: int, payload: Any) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self) -> Any:
+        return self._payload
+
+
+def test_gemini_provider_reads_the_answer_and_sends_the_key_in_a_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The HTTP shape is pinned here so a provider change cannot pass unnoticed."""
+    sent: dict[str, Any] = {}
+
+    def fake_post(url: str, **kwargs: Any) -> FakeResponse:
+        sent["url"] = url
+        sent.update(kwargs)
+        return FakeResponse(
+            200, {"candidates": [{"content": {"parts": [{"text": '{"answer": "ok"}'}]}}]}
+        )
+
+    monkeypatch.setattr("app.assistant.providers.httpx.post", fake_post)
+    provider = GeminiProvider("test-key", "gemini-2.0-flash", 20)
+
+    assert provider.generate(SYSTEM_PROMPT, {"a": 1}, "why?") == '{"answer": "ok"}'
+    assert "gemini-2.0-flash:generateContent" in sent["url"]
+    # The key travels in a header, never in the URL, so it cannot leak into a log.
+    assert "test-key" not in sent["url"]
+    assert sent["headers"]["x-goog-api-key"] == "test-key"
+    assert sent["timeout"] == 20
+    assert sent["json"]["generationConfig"]["responseMimeType"] == "application/json"
+    assert sent["json"]["systemInstruction"]["parts"][0]["text"] == SYSTEM_PROMPT
+
+
+@pytest.mark.parametrize(
+    "label,payload,status",
+    [
+        ("an error status", {}, 429),
+        ("an answer with no candidate", {"candidates": []}, 200),
+        ("an answer in an unexpected shape", {"nope": True}, 200),
+    ],
+)
+def test_gemini_provider_failures_become_provider_errors(
+    monkeypatch: pytest.MonkeyPatch, label: str, payload: Any, status: int
+) -> None:
+    monkeypatch.setattr(
+        "app.assistant.providers.httpx.post", lambda *a, **k: FakeResponse(status, payload)
+    )
+    with pytest.raises(ProviderError):
+        GeminiProvider("test-key", "gemini-2.0-flash", 20).generate("s", {}, "q")
+
+
+def test_gemini_provider_timeout_is_typed(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    def raise_timeout(*args: Any, **kwargs: Any):
+        raise httpx.TimeoutException("too slow")
+
+    monkeypatch.setattr("app.assistant.providers.httpx.post", raise_timeout)
+    with pytest.raises(ProviderTimeout):
+        GeminiProvider("test-key", "gemini-2.0-flash", 20).generate("s", {}, "q")
+
+
+def test_gemini_without_a_key_makes_no_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail(*args: Any, **kwargs: Any):
+        raise AssertionError("no HTTP call may be made without a key")
+
+    monkeypatch.setattr("app.assistant.providers.httpx.post", fail)
+    with pytest.raises(ProviderNotConfigured):
+        GeminiProvider("", "gemini-2.0-flash", 20).generate("s", {}, "q")
+
+
+@pytest.mark.parametrize(
+    "provider_name,expected",
+    [("none", "none"), ("gemini", "gemini"), ("ollama", "ollama"), ("anthropic", "anthropic")],
+)
+def test_build_provider_picks_the_configured_path(provider_name: str, expected: str) -> None:
+    from app.config import Settings
+
+    settings = Settings(ai_provider=provider_name, gemini_api_key="k", anthropic_api_key="k")
+    assert build_provider(settings).name == expected

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-haiku-4-5-20251001"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
     ai_timeout_seconds: int = 20
 
     @property
@@ -38,6 +40,8 @@ class Settings(BaseSettings):
     def ai_configured(self) -> bool:
         if self.ai_provider == "anthropic":
             return bool(self.anthropic_api_key)
+        if self.ai_provider == "gemini":
+            return bool(self.gemini_api_key)
         if self.ai_provider == "ollama":
             return bool(self.ollama_url)
         return False

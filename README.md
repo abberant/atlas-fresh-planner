@@ -62,6 +62,8 @@ randomness. The same input always gives the same output, byte for byte.
 | POST | `/api/plan/seed` | read the workbook at `DATA_PATH`, validate it, return `{plan_id, source_file, source, plan}` |
 | POST | `/api/assistant/ask` | explain one part of a plan the server still holds, or answer honestly that it cannot |
 
+`AI_PROVIDER` selects the model path: `none` (default), `gemini`, `anthropic` or `ollama`.
+
 Errors always come back in one small shape and never carry a stack trace:
 `422 {"error": "VALIDATION_FAILED", "errors": [...]}` for a bad workbook,
 `500 {"error": "SERVER_ERROR", "message": "..."}` for anything else.
@@ -148,6 +150,15 @@ correctly showed the timeout state instead of an answer.
 If you enable a local model, raise `AI_TIMEOUT_SECONDS` well above its default of 20,
 or use a small model. A model that cannot answer in time is not a failure of the
 product: the panel says the provider did not answer and offers the engine summary.
+
+Free and hosted, with Google AI Studio, which has a free tier:
+
+```
+cp .env.example .env      # then set AI_PROVIDER=gemini and GEMINI_API_KEY
+```
+
+Get a key at https://aistudio.google.com/apikey. Nothing is installed and nothing
+runs on your machine.
 
 Free and local, with [Ollama](https://ollama.com):
 
