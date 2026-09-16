@@ -15,6 +15,7 @@ Python 3.11 or newer, Node.js 20 or newer, npm. Tested with Python 3.12 and Node
 ```
 make setup    # python venv and backend dependencies, npm ci in frontend
 make dev      # backend on :8000, frontend on :5173, open http://localhost:5173
+              # if 5173 is already used, Vite picks the next free port and prints it
 make test     # backend tests
 make build    # production build of the frontend
 make start    # one server: FastAPI serves the API and the built frontend on :8000
