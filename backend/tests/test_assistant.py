@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from typing import Any, Iterator
 
 import pytest
@@ -11,7 +12,12 @@ from fastapi.testclient import TestClient
 from app.api.plan_store import plan_store
 from app.assistant.context import build_context
 from app.assistant.fallback import build_summary
-from app.assistant.grounding import GroundingError, context_numbers, validate_answer
+from app.assistant.grounding import (
+    GroundingError,
+    allowed_numbers,
+    context_numbers,
+    validate_answer,
+)
 from app.assistant.providers import (
     SYSTEM_PROMPT,
     GeminiProvider,
@@ -308,6 +314,58 @@ def test_ids_are_checked_against_the_whole_plan(seed_source) -> None:
     assert "F42" in str(error.value)
 
 
+@pytest.mark.parametrize("label", ["Segment C", "segment C", "SEGMENT C", "Segments C"])
+def test_segment_citations_are_read_whatever_the_case(seed_source, label: str) -> None:
+    """A real segment cited as "segment C" is the same segment, so it is resolved."""
+    plan = build_plan(seed_source)
+    context = build_context(QuestionId.SEGMENT_GAPS, plan)
+    reply = json.dumps(
+        {"answer": "Segment C missed its plan.", "citations": [label], "unavailable": False}
+    )
+
+    grounded = validate_answer(reply, plan, context)
+    assert [c.id for c in grounded.citations] == ["C"]
+    assert grounded.citations[0].type == "segment"
+
+
+def test_a_lower_case_segment_in_the_answer_is_still_checked(seed_source) -> None:
+    """Reading the label in any case means an unknown segment cannot slip through."""
+    plan = build_plan(seed_source)
+    context = build_context(QuestionId.SEGMENT_GAPS, plan)
+    thin_plan = plan.model_copy(
+        update={"segment_comparison": [row for row in plan.segment_comparison if row.segment != "C"]}
+    )
+    reply = json.dumps({"answer": "segment C is short.", "citations": ["A"], "unavailable": False})
+
+    with pytest.raises(GroundingError) as error:
+        validate_answer(reply, thin_plan, context)
+    assert "C" in str(error.value)
+
+
+def test_a_gap_may_be_written_without_its_minus_sign(seed_source) -> None:
+    """"27.9 t below plan" is the same fact as a variance of -27.9, so it is allowed."""
+    plan = build_plan(seed_source)
+    context = build_context(QuestionId.SEGMENT_GAPS, plan)
+    assert Decimal("-27.9") in context_numbers(context)
+    assert Decimal("27.9") not in context_numbers(context)
+    assert Decimal("27.9") in allowed_numbers(context)
+
+    reply = json.dumps(
+        {"answer": "Segment C is 27.9 t below plan.", "citations": ["Segment C"]}
+    )
+    assert validate_answer(reply, plan, context).answer
+
+
+def test_a_magnitude_that_is_not_in_the_context_is_still_rejected(seed_source) -> None:
+    plan = build_plan(seed_source)
+    context = build_context(QuestionId.SEGMENT_GAPS, plan)
+    reply = json.dumps({"answer": "Segment C is 27.8 t below plan.", "citations": ["Segment C"]})
+
+    with pytest.raises(GroundingError) as error:
+        validate_answer(reply, plan, context)
+    assert "27.8" in str(error.value)
+
+
 def test_context_numbers_ignores_booleans() -> None:
     assert context_numbers({"is_full": True, "capacity_t": 500}) == {__import__("decimal").Decimal("500")}
 
@@ -354,15 +412,17 @@ def test_gemini_provider_reads_the_answer_and_sends_the_key_in_a_header(
         )
 
     monkeypatch.setattr("app.assistant.providers.httpx.post", fake_post)
-    provider = GeminiProvider("test-key", "gemini-2.0-flash", 20)
+    provider = GeminiProvider("test-key", "gemini-3.6-flash", 20)
 
     assert provider.generate(SYSTEM_PROMPT, {"a": 1}, "why?") == '{"answer": "ok"}'
-    assert "gemini-2.0-flash:generateContent" in sent["url"]
+    assert "gemini-3.6-flash:generateContent" in sent["url"]
     # The key travels in a header, never in the URL, so it cannot leak into a log.
     assert "test-key" not in sent["url"]
     assert sent["headers"]["x-goog-api-key"] == "test-key"
     assert sent["timeout"] == 20
     assert sent["json"]["generationConfig"]["responseMimeType"] == "application/json"
+    assert sent["json"]["generationConfig"]["maxOutputTokens"] == 2048
+    assert sent["json"]["generationConfig"]["thinkingConfig"]["thinkingBudget"] == 0
     assert sent["json"]["systemInstruction"]["parts"][0]["text"] == SYSTEM_PROMPT
 
 
@@ -381,7 +441,28 @@ def test_gemini_provider_failures_become_provider_errors(
         "app.assistant.providers.httpx.post", lambda *a, **k: FakeResponse(status, payload)
     )
     with pytest.raises(ProviderError):
-        GeminiProvider("test-key", "gemini-2.0-flash", 20).generate("s", {}, "q")
+        GeminiProvider("test-key", "gemini-3.6-flash", 20).generate("s", {}, "q")
+
+
+def test_gemini_truncated_answer_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A half written answer must be reported as a provider limit, not as bad JSON."""
+    monkeypatch.setattr(
+        "app.assistant.providers.httpx.post",
+        lambda *a, **k: FakeResponse(
+            200,
+            {
+                "candidates": [
+                    {
+                        "content": {"parts": [{"text": '{"answer": "C02 is sh'}]},
+                        "finishReason": "MAX_TOKENS",
+                    }
+                ]
+            },
+        ),
+    )
+    with pytest.raises(ProviderError) as error:
+        GeminiProvider("test-key", "gemini-3.6-flash", 20).generate("s", {}, "q")
+    assert "output limit" in str(error.value)
 
 
 def test_gemini_provider_timeout_is_typed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -392,7 +473,7 @@ def test_gemini_provider_timeout_is_typed(monkeypatch: pytest.MonkeyPatch) -> No
 
     monkeypatch.setattr("app.assistant.providers.httpx.post", raise_timeout)
     with pytest.raises(ProviderTimeout):
-        GeminiProvider("test-key", "gemini-2.0-flash", 20).generate("s", {}, "q")
+        GeminiProvider("test-key", "gemini-3.6-flash", 20).generate("s", {}, "q")
 
 
 def test_gemini_without_a_key_makes_no_call(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -401,7 +482,7 @@ def test_gemini_without_a_key_makes_no_call(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setattr("app.assistant.providers.httpx.post", fail)
     with pytest.raises(ProviderNotConfigured):
-        GeminiProvider("", "gemini-2.0-flash", 20).generate("s", {}, "q")
+        GeminiProvider("", "gemini-3.6-flash", 20).generate("s", {}, "q")
 
 
 @pytest.mark.parametrize(

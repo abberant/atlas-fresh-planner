@@ -16,7 +16,7 @@ from app.domain.models import PlanResult
 
 FARM_PATTERN = re.compile(r"\bF\d{2}\b")
 CLIENT_PATTERN = re.compile(r"\bC\d{2}\b")
-SEGMENT_PATTERN = re.compile(r"\bSegment ([ABCD])\b")
+SEGMENT_PATTERN = re.compile(r"\bsegments?\s+([ABCD])\b", re.IGNORECASE)
 NUMBER_PATTERN = re.compile(r"\d[\d,]*(?:\.\d+)?")
 FENCE_PATTERN = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
 
@@ -64,6 +64,19 @@ def known_ids(plan: PlanResult) -> KnownIds:
         clients=frozenset(client.client_id for client in plan.clients),
         segments=frozenset(row.segment.value for row in plan.segment_comparison),
     )
+
+
+def allowed_numbers(context: Any) -> set[Decimal]:
+    """Every number the model may write: the context numbers and their magnitudes.
+
+    A gap of -27.9 t is written by a person as "27.9 t below plan", and the sign is
+    carried by the words. Allowing the magnitude of a context number keeps the rule
+    that every number must trace back to one the server produced, while not
+    rejecting a correct sentence. Nothing else is derived: no sums, no rounding,
+    no percentages.
+    """
+    numbers = context_numbers(context)
+    return numbers | {abs(number) for number in numbers}
 
 
 def context_numbers(context: Any) -> set[Decimal]:
@@ -154,7 +167,7 @@ def validate_answer(raw: str, plan: PlanResult, context: dict[str, Any]) -> Grou
         if segment not in ids.segments:
             raise GroundingError(f"unknown segment in the answer: Segment {segment}")
 
-    allowed = context_numbers(context)
+    allowed = allowed_numbers(context)
     for number in _numbers_in(answer):
         if number not in allowed:
             raise GroundingError(f"the answer used a number that is not in the plan: {number}")

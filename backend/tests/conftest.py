@@ -13,8 +13,37 @@ from typing import Any, Callable
 import pytest
 from openpyxl import load_workbook
 
+from app.config import Settings, get_settings
 from app.domain.models import SourceData
 from app.ingest.validation import validate_workbook
+
+#: Settings that a developer's own .env or shell could otherwise change under the tests.
+ENVIRONMENT_KEYS = (
+    "DATA_PATH",
+    "AI_PROVIDER",
+    "AI_TIMEOUT_SECONDS",
+    "GEMINI_API_KEY",
+    "GEMINI_MODEL",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_MODEL",
+    "OLLAMA_URL",
+    "OLLAMA_MODEL",
+)
+
+
+@pytest.fixture(autouse=True)
+def hermetic_settings(monkeypatch: pytest.MonkeyPatch):
+    """Run every test on the shipped defaults.
+
+    Without this, a developer with AI_PROVIDER=gemini in their own .env would see
+    the no-key tests fail, and a clean clone and a working machine would disagree.
+    """
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    for key in ENVIRONMENT_KEYS:
+        monkeypatch.delenv(key, raising=False)
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SEED_WORKBOOK = REPO_ROOT / "data" / "Atlas_Fresh_Production_Commercial_Data.xlsx"

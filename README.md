@@ -140,16 +140,18 @@ validated model output. A summary written by the planning engine is always label
 
 ### Turning the AI on
 
-It is off by default and the app is complete without it. **The assistant has never been
-run against a real model**, only against a fake provider in the tests and a local stub
-server, so treat the AI path as written and checked at the boundary rather than proven
-end to end. Ollama with llama3.1 was tried on an Apple M2 with 5.3 GiB of graphics
-memory and was far too slow to answer: every question hit the timeout and the product
-correctly showed the timeout state instead of an answer.
+It is off by default and the app is complete without it.
 
-If you enable a local model, raise `AI_TIMEOUT_SECONDS` well above its default of 20,
-or use a small model. A model that cannot answer in time is not a failure of the
-product: the panel says the provider did not answer and offers the engine summary.
+The Gemini path has been run for real against `gemini-3.6-flash`. All ten answers that
+reached the model were accepted by the grounding checks, in 2 to 3 seconds each. The
+free tier is rate limited, so a burst of questions returns a quota error, and the panel
+then shows the honest provider error state with the engine summary one click away.
+
+Ollama was also tried, with llama3.1 on an Apple M2 with 5.3 GiB of graphics memory. It
+was far too slow to answer and every question hit the timeout. If you enable a local
+model, raise `AI_TIMEOUT_SECONDS` well above its default of 20, or use a small model. A
+model that cannot answer in time is not a failure of the product: the panel says the
+provider did not answer and offers the engine summary.
 
 Free and hosted, with Google AI Studio, which has a free tier:
 
@@ -208,10 +210,12 @@ purpose, not forgotten.
   rejected rather than rounded.
 - The assistant explains, it does not compute. With no model configured it still answers,
   from summaries written by the engine, and says so.
-- The AI path has never produced a real answer on this machine, so the grounding checks
-  are proven against a fake provider and a stub server, not against a real model's
-  habits. The checks reject rather than repair, so an unexpected answer becomes a
-  visible rejection, not a wrong number on the screen.
+- The AI path is proven against one model, `gemini-3.6-flash`, and against fake
+  providers in the tests. Another model may phrase things in a way the checks reject.
+  The checks reject rather than repair, so that shows up as a visible rejection with
+  the engine summary offered, never as a wrong number on the screen.
+- The free Gemini tier is rate limited. A demo that asks many questions quickly will
+  see the quota error state.
 - Free text is routed by keywords, not by a model. It is predictable and cheap, and it
   sends anything it does not recognise to the honest "not available" answer.
 - The plan cache holds the last few plans in memory. After a server restart the

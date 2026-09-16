@@ -47,15 +47,34 @@ implemented the milestones and reported what it checked.
 - **The real HTTP path** of the Ollama provider was exercised once against a local stub
   server, to check that a validated answer reaches the screen labelled as an AI answer,
   and once against a dead port, to check the provider error state.
-- **A real model was tried and could not be used on this machine.** Ollama with
-  llama3.1 (8B, 4.9 GB) was installed on an Apple M2 with 5.3 GiB of graphics memory.
-  A trivial 29 token prompt took 2 minutes 25 seconds, the three real questions all ran
-  past the timeout, and the machine then froze and had to be restarted. Ollama and the
-  model were removed. **So no answer written by a real model has ever been checked.**
-  What this did show is that the honest failure path works with a real provider behind
-  it: every question returned `mode: error` with `error_code: TIMEOUT`, no AI answer was
-  shown, and the engine summary was offered instead. No check was loosened and the
-  system prompt was not touched, because there was no model output to learn from.
+- **The assistant was run against a real model.** Google Gemini `gemini-3.6-flash`,
+  on the free tier, answered all three questions. Ten of the ten answers that reached
+  the model passed the grounding checks, in 2 to 3 seconds each. An eleventh burst of
+  calls hit the free tier quota and returned the honest provider error state, which is
+  the correct behaviour.
+- **Ollama could not be used on this machine.** llama3.1 (8B, 4.9 GB) was installed on
+  an Apple M2 with 8 GB of memory. A trivial 29 token prompt took 2 minutes 25 seconds,
+  all three questions ran past the timeout, and the machine froze and had to be
+  restarted. Ollama and the model were removed. The one thing it did show is that the
+  timeout state works with a real provider behind it.
+- **Three real defects were found by testing against a real model**, and none of them
+  were fixed by weakening a check:
+  1. The first model answered with valid JSON that was cut in half. The cause was the
+     model spending 767 of its 800 token output budget on internal thinking. Fixed in
+     the provider by raising the budget and turning thinking off, which also made it
+     three times faster. The provider now also reports a truncated answer as a provider
+     limit instead of letting it fail later as unreadable JSON.
+  2. A correct answer was rejected for citing "segment C" in lower case. The parser now
+     reads the label in any case, which means it also validates segment mentions it
+     used to skip, so it checks more than before, not less.
+  3. A correct answer was rejected for writing "27.9 t below plan" when the plan holds
+     a variance of -27.9. The number rule now accepts the magnitude of a context
+     number as well as the number itself, and nothing else: no sums, no rounding, no
+     percentages. Every number in an answer still has to trace back to one the server
+     produced. **This is the only change to a check and it is worth a second opinion.**
+- **A test isolation bug was found at the same time.** The suite read the developer's
+  own `.env`, so once a real key was configured the no-key tests failed. Tests now run
+  on the shipped defaults whatever the machine has configured.
 - **Abdellah opened the app in a browser** at both widths after each UI step and gave
   the corrections that are in the commit history.
 

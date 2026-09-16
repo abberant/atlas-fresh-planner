@@ -22,6 +22,10 @@ Rules:
 - Never mention a farm, client or segment id that is not present in the context.
 - Cite the ids you used, for example "C02", "F01" or "Segment A".
 - Answer in 3 to 6 short sentences, in plain business English, for a manager.
+- Never use field names or codes from the context. Write "short 10 tonnes", not
+  "shortfall_t of 10", and "there was not enough Segment A", not
+  "INSUFFICIENT_COMPATIBLE_SEGMENT".
+- Write segment labels as "Segment A", and tonnes as "10 t" or "10 tonnes".
 - If the context cannot answer the question, set unavailable to true.
 
 Reply with JSON only, no code fences, in exactly this shape:
@@ -44,6 +48,17 @@ class Provider(Protocol):
     name: str
 
     def generate(self, system: str, context: dict[str, Any], question: str) -> str: ...
+
+
+def _why(response: httpx.Response) -> str:
+    """The provider's own explanation, for the server log. It never reaches the client."""
+    try:
+        body = response.json()
+    except ValueError:
+        return response.text[:200]
+    if isinstance(body, dict) and isinstance(body.get("error"), dict):
+        return str(body["error"].get("message", ""))[:200]
+    return str(body)[:200]
 
 
 def _user_message(context: dict[str, Any], question: str) -> str:
@@ -130,8 +145,14 @@ class GeminiProvider:
                     ],
                     "generationConfig": {
                         "responseMimeType": "application/json",
-                        "maxOutputTokens": 800,
+                        # Room for the whole answer. A truncated answer is rejected
+                        # later, so it is cheaper to give the model enough budget.
+                        "maxOutputTokens": 2048,
                         "temperature": 0,
+                        # This model thinks before answering unless told not to, and
+                        # that thinking eats the same budget. We only need it to read
+                        # a small context back to us, so it is turned off.
+                        "thinkingConfig": {"thinkingBudget": 0},
                     },
                 },
             )
@@ -141,13 +162,22 @@ class GeminiProvider:
             raise ProviderError(str(exc)) from exc
 
         if response.status_code >= 400:
-            raise ProviderError(f"the provider answered with status {response.status_code}")
+            raise ProviderError(
+                f"the provider answered with status {response.status_code}: {_why(response)}"
+            )
 
         try:
-            parts = response.json()["candidates"][0]["content"]["parts"]
-            return "".join(part.get("text", "") for part in parts)
+            candidate = response.json()["candidates"][0]
+            parts = candidate["content"]["parts"]
+            text = "".join(part.get("text", "") for part in parts)
         except (KeyError, IndexError, ValueError, TypeError) as exc:
             raise ProviderError("the provider answer could not be read") from exc
+
+        if candidate.get("finishReason") == "MAX_TOKENS":
+            # The answer is cut in half. Say why, instead of letting it fail later
+            # as unreadable JSON.
+            raise ProviderError("the provider hit its output limit before finishing the answer")
+        return text
 
 
 class OllamaProvider:
