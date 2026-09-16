@@ -3,8 +3,16 @@
  * No wording is stored: every number and every name comes from the data.
  */
 
-import type { PlanResult, ShortageReason } from '../api/types'
-import { formatEur, formatTonnes, joinWithAnd } from './format'
+import type { PlanResult, Segment, SegmentComparison, ShortageReason } from '../api/types'
+import { formatTonnes, joinWithAnd } from './format'
+
+/** Why fruit could not be exported: the station filled up, or no client could take it. */
+export function localReason(plan: PlanResult): string {
+  const { kpis } = plan
+  return kpis.export_volume_t >= kpis.station_capacity_t
+    ? `the station is full at ${formatTonnes(kpis.station_capacity_t)}`
+    : 'no client could take that quality today'
+}
 
 export function buildSummarySentence(plan: PlanResult): string {
   const { kpis } = plan
@@ -15,28 +23,18 @@ export function buildSummarySentence(plan: PlanResult): string {
       `${formatTonnes(kpis.expected_plan_total_t)} planned.`,
   )
 
-  if (kpis.export_volume_t >= kpis.station_capacity_t) {
-    parts.push(`The station is full at ${formatTonnes(kpis.station_capacity_t)}.`)
-  } else {
-    parts.push(
-      `The station packed ${formatTonnes(kpis.export_volume_t)} of ` +
-        `${formatTonnes(kpis.station_capacity_t)}.`,
-    )
-  }
-
-  const localSegments = plan.segment_comparison
-    .filter((row) => row.local_t > 0)
-    .map((row) => `Segment ${row.segment}`)
-
   const risk =
     kpis.at_risk_clients === 0
       ? 'Every client is fully served'
       : `${kpis.at_risk_clients} ${kpis.at_risk_clients === 1 ? 'client is' : 'clients are'} short`
 
   if (kpis.local_volume_t > 0) {
+    const segments = plan.segment_comparison
+      .filter((row) => row.local_t > 0)
+      .map((row) => `Segment ${row.segment}`)
     parts.push(
-      `${risk} and ${formatTonnes(kpis.local_volume_t)} of ${joinWithAnd(localSegments)} ` +
-        `go to the local market for ${formatEur(kpis.local_value_eur)}.`,
+      `${risk} and ${formatTonnes(kpis.local_volume_t)} of ${joinWithAnd(segments)} ` +
+        `go to the local market because ${localReason(plan)}.`,
     )
   } else {
     parts.push(`${risk} and nothing goes to the local market.`)
@@ -45,21 +43,41 @@ export function buildSummarySentence(plan: PlanResult): string {
   return parts.join(' ')
 }
 
-/** How many clients at risk are short on quality, and how many on station capacity. */
-export function countReasons(plan: PlanResult): Record<ShortageReason, number> {
-  const counts: Record<ShortageReason, number> = {
-    INSUFFICIENT_COMPATIBLE_SEGMENT: 0,
-    STATION_CAPACITY_REACHED: 0,
-  }
-  for (const client of plan.clients) {
-    if (client.reason) counts[client.reason] += 1
-  }
-  return counts
+/** At risk client ids grouped by the reason they are short. */
+export interface RiskGroup {
+  reason: ShortageReason
+  label: string
+  clientIds: string[]
 }
 
-/** Short plain words for a shortage reason. */
-export function reasonLabel(reason: ShortageReason, segments: string): string {
+export function groupAtRiskClients(plan: PlanResult): RiskGroup[] {
+  const order: { reason: ShortageReason; label: string }[] = [
+    { reason: 'INSUFFICIENT_COMPATIBLE_SEGMENT', label: 'short on quality' },
+    { reason: 'STATION_CAPACITY_REACHED', label: 'station full' },
+  ]
+  return order
+    .map(({ reason, label }) => ({
+      reason,
+      label,
+      clientIds: plan.clients.filter((client) => client.reason === reason).map((c) => c.client_id),
+    }))
+    .filter((group) => group.clientIds.length > 0)
+}
+
+/** The segment that missed its plan by the most tonnes today. Null when nothing is below plan. */
+export function worstSegment(plan: PlanResult): SegmentComparison | null {
+  const below = plan.segment_comparison.filter((row) => row.variance_t < 0)
+  if (below.length === 0) return null
+  return below.reduce((worst, row) => (row.variance_t < worst.variance_t ? row : worst))
+}
+
+/** Plain words for a shortage reason, used in the Commercial table. */
+export function reasonInPlainWords(
+  reason: ShortageReason,
+  requestedSegment: Segment,
+  capacityT: number,
+): string {
   return reason === 'STATION_CAPACITY_REACHED'
-    ? 'Station full'
-    : `Not enough ${segments}`
+    ? `Station full at ${formatTonnes(capacityT)}`
+    : `Not enough Segment ${requestedSegment} today`
 }

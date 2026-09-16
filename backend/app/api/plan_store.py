@@ -17,6 +17,7 @@ MAX_ENTRIES = 8
 @dataclass(frozen=True)
 class StoredPlan:
     plan_id: str
+    source_file: str
     source: SourceData
     plan: PlanResult
 

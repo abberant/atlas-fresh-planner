@@ -171,6 +171,8 @@ export interface PlanResult {
 
 export interface PlanResponse {
   plan_id: string
+  /** Name of the file today's numbers came from. */
+  source_file: string
   source: SourcePayload
   plan: PlanResult
 }

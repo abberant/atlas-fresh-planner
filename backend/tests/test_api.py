@@ -47,7 +47,8 @@ def test_plan_seed_returns_the_expected_shape(client: TestClient) -> None:
     assert response.status_code == 200
 
     body = response.json()
-    assert set(body) == {"plan_id", "source", "plan"}
+    assert set(body) == {"plan_id", "source_file", "source", "plan"}
+    assert body["source_file"].endswith(".xlsx")
     assert len(body["plan_id"]) == 64  # sha256 of the normalised source data
 
     source = body["source"]

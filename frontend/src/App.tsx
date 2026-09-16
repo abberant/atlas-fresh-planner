@@ -7,6 +7,7 @@ import ErrorBanner from './components/ErrorBanner'
 import Header, { type AppStatus } from './components/Header'
 import LoadingSkeleton from './components/LoadingSkeleton'
 import ValidationErrorPanel from './components/ValidationErrorPanel'
+import { NO_SELECTION, withSelection, type EntityKind, type Selection } from './lib/selection'
 
 interface FailureState {
   kind: ApiErrorKind
@@ -17,9 +18,11 @@ export default function App() {
   const [status, setStatus] = useState<AppStatus>('idle')
   /** The last plan that loaded correctly. Kept on a server error, dropped on invalid input. */
   const [response, setResponse] = useState<PlanResponse | null>(null)
+  const [loadedAt, setLoadedAt] = useState<Date | null>(null)
   const [issues, setIssues] = useState<ValidationIssue[]>([])
   const [failure, setFailure] = useState<FailureState | null>(null)
   const [message, setMessage] = useState('')
+  const [selection, setSelection] = useState<Selection>(NO_SELECTION)
 
   const load = useCallback(async () => {
     setStatus('loading')
@@ -27,6 +30,8 @@ export default function App() {
     try {
       const next = await loadSeedPlan()
       setResponse(next)
+      setLoadedAt(new Date())
+      setSelection(NO_SELECTION)
       setIssues([])
       setFailure(null)
       setStatus('ready')
@@ -44,6 +49,7 @@ export default function App() {
         // Never show a plan next to invalid input, not even an older one.
         setIssues(apiError.issues)
         setResponse(null)
+        setLoadedAt(null)
         setFailure(null)
         setStatus('invalid')
         setMessage(`The workbook has ${apiError.issues.length} problems. Nothing was calculated.`)
@@ -56,11 +62,23 @@ export default function App() {
     }
   }, [])
 
+  /** One click on any ID selects it. The matching tab opens with it in the next step. */
+  const handleSelect = useCallback((kind: EntityKind, id: string) => {
+    setSelection((current) => withSelection(current, kind, id))
+  }, [])
+
   const loading = status === 'loading'
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <Header status={status} source={response?.source ?? null} errorCount={issues.length} onReload={load} />
+      <Header
+        status={status}
+        source={response?.source ?? null}
+        sourceFile={response?.source_file ?? null}
+        loadedAt={loadedAt}
+        errorCount={issues.length}
+        onReload={load}
+      />
 
       <main className="mx-auto max-w-[1400px] px-6 py-6">
         <p aria-live="polite" className="sr-only">
@@ -93,7 +111,12 @@ export default function App() {
                   Last successful plan
                 </p>
               ) : null}
-              <DecisionSummary plan={response.plan} stale={status === 'error'} />
+              <DecisionSummary
+                plan={response.plan}
+                selection={selection}
+                onSelect={handleSelect}
+                stale={status === 'error'}
+              />
               <section
                 aria-labelledby="next-heading"
                 className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-slate-600"

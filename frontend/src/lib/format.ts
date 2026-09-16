@@ -26,10 +26,17 @@ export function formatEur(value: number): string {
   return `EUR ${NUMBER.format(Math.round(value))}`
 }
 
-/** A fraction as a percent with one decimal: 0.893 becomes "89.3%". Null becomes "n/a". */
+/** A fraction as a percent: 0.893 becomes "89.3%", 1 becomes "100%". Null becomes "n/a". */
 export function formatPercent(fraction: number | null): string {
   if (fraction === null || Number.isNaN(fraction)) return 'n/a'
-  return `${ONE_DECIMAL.format(fraction * 100)}%`
+  const percent = Math.round(fraction * 1000) / 10
+  const text = Number.isInteger(percent) ? NUMBER.format(percent) : ONE_DECIMAL.format(percent)
+  return `${text}%`
+}
+
+/** "03:25", the moment the plan was loaded in the browser. Never part of the plan. */
+export function formatClockTime(date: Date): string {
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
 /** An arrow and a word, so a gap is never shown by colour alone. */

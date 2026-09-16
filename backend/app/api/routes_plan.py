@@ -45,6 +45,8 @@ class SourcePayload(BaseModel):
 
 class PlanResponse(BaseModel):
     plan_id: str
+    #: Name of the file today's numbers came from. Shown in the header, never in the plan.
+    source_file: str
     source: SourcePayload
     plan: PlanResult
 
@@ -59,7 +61,12 @@ def _plan_from_file(path: Path) -> StoredPlan:
     if issues or source is None:
         raise WorkbookInvalid(issues)
 
-    stored = StoredPlan(plan_id=source.fingerprint(), source=source, plan=build_plan(source))
+    stored = StoredPlan(
+        plan_id=source.fingerprint(),
+        source_file=path.name,
+        source=source,
+        plan=build_plan(source),
+    )
     plan_store.put(stored)
     return stored
 
@@ -73,6 +80,7 @@ def plan_seed(response: Response) -> PlanResponse:
     response.headers["X-Compute-Ms"] = f"{(time.perf_counter() - started) * 1000:.1f}"
     return PlanResponse(
         plan_id=stored.plan_id,
+        source_file=stored.source_file,
         source=SourcePayload.of(stored.source),
         plan=stored.plan,
     )

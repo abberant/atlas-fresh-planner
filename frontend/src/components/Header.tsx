@@ -1,10 +1,14 @@
 import type { SourcePayload } from '../api/types'
+import { formatClockTime } from '../lib/format'
 
 export type AppStatus = 'idle' | 'loading' | 'ready' | 'invalid' | 'error'
 
 interface HeaderProps {
   status: AppStatus
   source: SourcePayload | null
+  sourceFile: string | null
+  /** When the browser received the plan. Shown in the header only, never in the plan. */
+  loadedAt: Date | null
   errorCount: number
   onReload: () => void
 }
@@ -41,7 +45,14 @@ function dataHealth(status: AppStatus, source: SourcePayload | null, errorCount:
   return { icon: '–', text: 'No data loaded', className: 'bg-slate-100 text-slate-700' }
 }
 
-export default function Header({ status, source, errorCount, onReload }: HeaderProps) {
+export default function Header({
+  status,
+  source,
+  sourceFile,
+  loadedAt,
+  errorCount,
+  onReload,
+}: HeaderProps) {
   const badge = dataHealth(status, source, errorCount)
   const loading = status === 'loading'
   const label = status === 'idle' ? 'Load today’s data' : 'Reload today’s data'
@@ -49,9 +60,14 @@ export default function Header({ status, source, errorCount, onReload }: HeaderP
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-3 px-6 py-3">
-        <div className="mr-auto">
+        <div className="mr-auto min-w-0">
           <h1 className="text-lg font-semibold text-slate-900">Atlas Fresh</h1>
           <p className="text-sm text-slate-600">Daily apple export planner</p>
+          {loadedAt && sourceFile ? (
+            <p className="truncate text-xs text-slate-500" title={sourceFile}>
+              Loaded at {formatClockTime(loadedAt)} from {sourceFile}
+            </p>
+          ) : null}
         </div>
 
         <p className={`rounded-full px-3 py-1 text-sm font-medium ${badge.className}`}>
