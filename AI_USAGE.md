@@ -52,21 +52,18 @@ implemented the milestones and reported what it checked.
 
 ## Time spent
 
-Approximate, measured across the working session.
+**About 1 hour of Abdellah's time so far.**
 
-| Part | Hours |
-|---|---|
-| M0 scaffold | 0.5 |
-| M1 ingest and validation | 1.5 |
-| M2 planning engine | 1.5 |
-| Strict validation change | 0.25 |
-| M3 API | 0.5 |
-| M4 workspace UI, in three reviewed steps | 3.0 |
-| M4 follow up, the planned versus actual card, README and this file | 0.5 |
-| M5 assistant, server and panel | 1.5 |
-| Total so far | about 9.25 |
+That is the number that matters for this assessment, and it is the one he reported.
+The work went fast because `CLAUDE.md` was written first, so each milestone was one
+instruction and one review instead of a conversation.
+
+An earlier version of this file carried a per milestone table of hours. Claude Code had
+estimated those numbers rather than measured them, and they were wrong. They are removed.
+No time is estimated here.
 
 ## Intentional omissions
 
-Listed in full in `README.md` at milestone M6. So far, and on purpose: no authentication,
-no database, no upload endpoint yet, no detail panels yet, no chart, no Docker, no CI.
+Listed with the reasons in `README.md`. In short, and on purpose: no client and farm
+detail panels, no upload endpoint, no authentication, no database, no chart, no Docker
+and no CI.

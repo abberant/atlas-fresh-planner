@@ -6,8 +6,6 @@ packing station, and shows what is short, who it hits and what falls back to the
 market. The committee still approves the plan: the product never contacts a farm or a
 client and never writes anywhere.
 
-Draft README. It is completed in milestone M6.
-
 ## Prerequisites
 
 Python 3.11 or newer, Node.js 20 or newer, npm. Tested with Python 3.12 and Node 24.
@@ -156,6 +154,53 @@ cp .env.example .env      # then set AI_PROVIDER=anthropic and ANTHROPIC_API_KEY
 
 `AI_TIMEOUT_SECONDS` (20 by default) bounds every call. `.env` is never committed.
 
+## What is deliberately not built
+
+The time box was 10 to 12 hours and the mandatory journey came first. These were cut on
+purpose, not forgotten.
+
+- **Client and farm detail panels.** Clicking an id was the point, and it works: it opens
+  the view that explains the id and highlights the row, with the surrounding rows kept so
+  the order that caused the shortage stays readable. A panel on top of that would have
+  repeated what the Commercial and Allocations tables already show, so the time went into
+  the segment impact cards instead, which answer the same question for the whole day
+  rather than one row at a time.
+- **The upload endpoint and its button.** The brief lists it as optional and after the
+  mandatory work. Evaluators can point `DATA_PATH` at any workbook, which exercises the
+  same validation and planning path, so the missing piece is convenience rather than
+  capability.
+- No authentication, roles, audit trail or database. The product prepares one meeting and
+  holds nothing between runs, except a small in memory cache of the last plans so the
+  assistant can explain the plan on the screen.
+- No chart. Tables and cards came first, and the numbers are small enough to read.
+- No Docker, no CI, no live deployment. A clean clone with the commands above is the
+  reproducibility path.
+
 ## Known limitations
 
-Written in milestone M6, together with the next production steps.
+- One day, one station, one product. There is no forecast and no multi day view.
+- The policy is the fixed one in the brief, not an optimiser. It serves the highest price
+  first, which maximises revenue for that rule but is not proven optimal for total value:
+  a cheaper client can sometimes save more fruit from the local market than a dearer one
+  earns. The product shows that trade off rather than deciding it.
+- Allocation is in 5 t steps because the input is. A workbook with finer quantities is
+  rejected rather than rounded.
+- The assistant explains, it does not compute. With no model configured it still answers,
+  from summaries written by the engine, and says so.
+- Free text is routed by keywords, not by a model. It is predictable and cheap, and it
+  sends anything it does not recognise to the honest "not available" answer.
+- The plan cache holds the last few plans in memory. After a server restart the
+  assistant asks for the data to be loaded again.
+
+## The next three steps in production
+
+1. **Make the trade off visible and adjustable.** Show what one client costs another, and
+   let the committee try a what if, for example serving C08 before C02, with the value
+   difference shown side by side. The engine is a pure function, so a second run on a
+   changed copy of the input is cheap and safe.
+2. **Keep the day, not just the numbers.** Store each approved plan with its input hash,
+   so the committee can compare today with yesterday, see whether a farm keeps missing
+   its Segment A target, and explain a decision a week later.
+3. **Bring the data in the way the teams work.** Read the daily receipts from the source
+   system instead of a file, keep the same validation and the same rejection behaviour,
+   and let the workbook stay as the fallback path.
