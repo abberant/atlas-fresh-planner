@@ -47,6 +47,15 @@ implemented the milestones and reported what it checked.
 - **The real HTTP path** of the Ollama provider was exercised once against a local stub
   server, to check that a validated answer reaches the screen labelled as an AI answer,
   and once against a dead port, to check the provider error state.
+- **A real model was tried and could not be used on this machine.** Ollama with
+  llama3.1 (8B, 4.9 GB) was installed on an Apple M2 with 5.3 GiB of graphics memory.
+  A trivial 29 token prompt took 2 minutes 25 seconds, the three real questions all ran
+  past the timeout, and the machine then froze and had to be restarted. Ollama and the
+  model were removed. **So no answer written by a real model has ever been checked.**
+  What this did show is that the honest failure path works with a real provider behind
+  it: every question returned `mode: error` with `error_code: TIMEOUT`, no AI answer was
+  shown, and the engine summary was offered instead. No check was loosened and the
+  system prompt was not touched, because there was no model output to learn from.
 - **Abdellah opened the app in a browser** at both widths after each UI step and gave
   the corrections that are in the commit history.
 
