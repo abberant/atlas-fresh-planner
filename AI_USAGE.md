@@ -4,17 +4,20 @@ Honest note on how this project was built.
 
 ## Tools
 
-- **Claude Code (Opus 5)** in the terminal, driven by `CLAUDE.md` in this repository.
-  It wrote the backend, the tests and the frontend, ran the test suite, and took
-  screenshots of the running app with headless Chrome to check the layout.
-- No other AI tool was used. The product itself runs with no AI key: the planning engine
-  is plain deterministic Python and never calls a model.
+- **Claude (chat, claude.ai)** to understand the brief, to draft `CLAUDE.md` together
+  with Abdellah, and to review screenshots and progress along the way.
+- **Claude Code (Opus 5)** in the terminal, driven by that `CLAUDE.md`. It wrote the
+  backend, the tests and the frontend, ran the test suite, and took screenshots of the
+  running app with headless Chrome to check the layout.
+- The product itself runs with no AI key. The planning engine is plain deterministic
+  Python and never calls a model.
 
 ## How the work was split
 
-Abdellah wrote `CLAUDE.md` (the brief, the policy, the evaluation weights and the
-milestone plan), then reviewed each milestone and gave the next direction. Claude Code
-implemented the milestones and reported what it checked.
+`CLAUDE.md` was drafted with Claude chat and reviewed by Abdellah: the business rules,
+the exact planning policy, the evaluation weights and the milestone plan. Abdellah then
+reviewed each milestone and gave the next direction. Claude Code implemented the
+milestones and reported what it checked.
 
 | Milestone | Built by Claude Code | Reviewed or decided by Abdellah |
 |---|---|---|

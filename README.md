@@ -148,10 +148,9 @@ free tier is rate limited, so a burst of questions returns a quota error, and th
 then shows the honest provider error state with the engine summary one click away.
 
 Ollama was also tried, with llama3.1 on an Apple M2 with 5.3 GiB of graphics memory. It
-was far too slow to answer and every question hit the timeout. If you enable a local
-model, raise `AI_TIMEOUT_SECONDS` well above its default of 20, or use a small model. A
-model that cannot answer in time is not a failure of the product: the panel says the
-provider did not answer and offers the engine summary.
+was far too slow to answer and every question hit the timeout. A model that cannot
+answer in time is not a failure of the product: the panel says the provider did not
+answer and offers the engine summary.
 
 **Gemini, free and hosted.** This is the path that was tested, and it needs no install.
 
@@ -164,8 +163,9 @@ provider did not answer and offers the engine summary.
 over time, so if a call returns 404 the server log carries Google's own message naming
 the replacement, and you can point `GEMINI_MODEL` at it.
 
-**Ollama, free and local.** `ollama pull llama3.1`, then set `AI_PROVIDER=ollama`. Be
-aware it needs real memory: see the note below.
+**Ollama, free and local.** `ollama pull llama3.1`, then set `AI_PROVIDER=ollama`. It
+needs real memory: llama3.1 is 4.9 GB and was far too slow on an 8 GB machine, so raise
+`AI_TIMEOUT_SECONDS` well above its default of 20, or pick a smaller model.
 
 **Anthropic.** Set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`.
 
