@@ -108,8 +108,11 @@ def _where(sheet: str, row: int | None, label: str | None, entity_id: str | None
 
 def _fmt(value: Decimal, min_decimals: int = 0) -> str:
     """Readable number for error messages, without scientific notation."""
-    quantized = value.quantize(Decimal("0.000001")) if value == value else value
-    text = format(quantized.normalize(), "f")
+    try:
+        shown = value.quantize(Decimal("0.000001")).normalize()
+    except InvalidOperation:  # very large numbers cannot be quantized
+        shown = value
+    text = format(shown, "f")
     if "." in text:
         whole, fraction = text.split(".")
     else:

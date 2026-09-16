@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 from decimal import Decimal
+from enum import Enum
 from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, PlainSerializer
@@ -121,3 +122,137 @@ class SourceData(Frozen):
 def as_json_value(value: Any) -> Any:
     """Small helper for places that need a plain JSON number from a Decimal."""
     return float(value) if isinstance(value, Decimal) else value
+
+
+# --------------------------------------------------------------- planning results
+
+
+class ClientStatus(str, Enum):
+    COMPLETE = "COMPLETE"
+    PARTIAL = "PARTIAL"
+    UNSERVED = "UNSERVED"
+
+
+class ShortageReason(str, Enum):
+    STATION_CAPACITY_REACHED = "STATION_CAPACITY_REACHED"
+    INSUFFICIENT_COMPATIBLE_SEGMENT = "INSUFFICIENT_COMPATIBLE_SEGMENT"
+
+
+class AllocationRow(BaseModel):
+    """One farm segment volume sent to one client. Consecutive 5 t steps are merged."""
+
+    row_id: int
+    processing_order: int
+    farm_id: str
+    segment: Segment
+    client_id: str
+    tonnes: int
+    quality_upgrade: int
+    price_per_t: Dec
+    revenue_eur: Dec
+
+
+class ClientResult(BaseModel):
+    client_id: str
+    client_name: str
+    processing_order: int
+    mode: AcceptanceMode
+    requested_segment: Segment
+    accepted_segments: list[Segment]
+    price_per_t: Dec
+    demand_t: int
+    allocated_t: int
+    remaining_t: int
+    revenue_eur: Dec
+    status: ClientStatus
+    reason: ShortageReason | None = None
+
+
+class ResidualRow(BaseModel):
+    """Fruit that was not exported and goes to the local market."""
+
+    farm_id: str
+    segment: Segment
+    tonnes: int
+    reference_price_per_t: Dec
+    local_value_eur: Dec
+
+
+class SegmentComparison(BaseModel):
+    segment: Segment
+    expected_t: Dec
+    actual_t: int
+    variance_t: Dec
+    exported_t: int
+    local_t: int
+
+
+class FarmSegmentComparison(BaseModel):
+    expected_t: Dec
+    actual_t: int
+    variance_t: Dec
+    exported_t: int
+    local_t: int
+
+
+class FarmComparison(BaseModel):
+    farm_id: str
+    farm_name: str
+    expected_total_t: Dec
+    actual_total_t: int
+    variance_total_t: Dec
+    exported_total_t: int
+    local_total_t: int
+    segments: dict[Segment, FarmSegmentComparison]
+
+
+class FarmSegmentVariance(BaseModel):
+    farm_id: str
+    segment: Segment
+    variance_t: Dec
+
+
+class RiskLink(BaseModel):
+    """Why one client is short, linked to the farm and segment gaps or to capacity."""
+
+    client_id: str
+    reason: ShortageReason
+    shortfall_t: int
+    segments_involved: list[Segment]
+    farms_below_plan: list[FarmSegmentVariance]
+    served_before: list[str]
+
+
+class Kpis(BaseModel):
+    expected_plan_total_t: Dec
+    actual_received_t: int
+    station_capacity_t: int
+    export_volume_t: int
+    local_volume_t: int
+    export_rate: Dec | None
+    station_utilization: Dec | None
+    export_revenue_eur: Dec
+    local_value_eur: Dec
+    total_value_eur: Dec
+    at_risk_clients: int
+    # Indicative only: what the local tonnes would have been worth at the export
+    # reference price of their segment, minus what the local market pays.
+    local_value_at_reference_eur: Dec
+    value_lost_to_local_eur: Dec
+
+
+class Invariant(BaseModel):
+    name: str
+    passed: bool
+    detail: str
+
+
+class PlanResult(BaseModel):
+    kpis: Kpis
+    segment_comparison: list[SegmentComparison]
+    farm_comparison: list[FarmComparison]
+    clients: list[ClientResult]
+    allocations: list[AllocationRow]
+    residuals: list[ResidualRow]
+    risk_links: list[RiskLink]
+    invariants: list[Invariant]
