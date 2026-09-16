@@ -35,6 +35,12 @@ STATION_SHEET = "Station"
 MIX_SUM_TOLERANCE = Decimal("0.000001")
 STEP_T = Decimal(5)
 
+# acceptance_mode and requested_segment are written exactly like this or rejected.
+MODE_VALUES: tuple[str, ...] = tuple(mode.value for mode in AcceptanceMode)
+SEGMENT_VALUES: tuple[str, ...] = tuple(segment.value for segment in Segment)
+MODE_ALLOWED = " or ".join(MODE_VALUES)
+SEGMENT_ALLOWED = ", ".join(SEGMENT_VALUES[:-1]) + " or " + SEGMENT_VALUES[-1]
+
 FARM_HEADERS: tuple[str, ...] = (
     "farm_id",
     "farm_name",
@@ -127,6 +133,18 @@ def _text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _found(value: Any) -> str:
+    """How a rejected cell value is shown back to the user."""
+    if value is None or (isinstance(value, str) and value == ""):
+        return "empty"
+    return repr(value)
+
+
+def _exact_choice(value: Any, allowed: tuple[str, ...]) -> str | None:
+    """Strict match. Spaces and letter case are never corrected, only rejected."""
+    return value if isinstance(value, str) and value in allowed else None
 
 
 def _to_decimal(value: Any) -> Decimal | None:
@@ -418,32 +436,34 @@ def _validate_clients(table: RawTable, issues: _Issues) -> list[Client]:
             )
             ok = False
 
-        raw_mode = _text(raw_row.get("acceptance_mode"))
+        raw_mode = raw_row.get("acceptance_mode")
         mode: AcceptanceMode | None = None
-        if raw_mode is not None and raw_mode.upper() in {m.value for m in AcceptanceMode}:
-            mode = AcceptanceMode(raw_mode.upper())
+        if _exact_choice(raw_mode, MODE_VALUES) is not None:
+            mode = AcceptanceMode(raw_mode)
         else:
             issues.add(
                 "MODE_INVALID",
                 CLIENT_SHEET,
                 f"{_where(CLIENT_SHEET, row, 'client', client_id)}: acceptance_mode is "
-                f"{raw_mode!r}. Use EXACT or MINIMUM.",
+                f"{_found(raw_mode)}. Allowed values are {MODE_ALLOWED}, written exactly like "
+                "that, in capital letters and with no extra spaces.",
                 row=row,
                 entity_id=client_id,
                 field="acceptance_mode",
             )
             ok = False
 
-        raw_segment = _text(raw_row.get("requested_segment"))
+        raw_segment = raw_row.get("requested_segment")
         segment: Segment | None = None
-        if raw_segment is not None and raw_segment.upper() in {s.value for s in Segment}:
-            segment = Segment(raw_segment.upper())
+        if _exact_choice(raw_segment, SEGMENT_VALUES) is not None:
+            segment = Segment(raw_segment)
         else:
             issues.add(
                 "SEGMENT_INVALID",
                 CLIENT_SHEET,
                 f"{_where(CLIENT_SHEET, row, 'client', client_id)}: requested_segment is "
-                f"{raw_segment!r}. Use A, B, C or D.",
+                f"{_found(raw_segment)}. Allowed values are {SEGMENT_ALLOWED}, written exactly "
+                "like that, in capital letters and with no extra spaces.",
                 row=row,
                 entity_id=client_id,
                 field="requested_segment",
@@ -646,19 +666,20 @@ def _validate_reference_prices(table: RawTable, issues: _Issues) -> list[Referen
 
     for raw_row in table.rows:
         row = raw_row.number
-        raw_segment = _text(raw_row.get("segment"))
-        if raw_segment is None or raw_segment.upper() not in {s.value for s in Segment}:
+        raw_segment = raw_row.get("segment")
+        if _exact_choice(raw_segment, SEGMENT_VALUES) is None:
             issues.add(
                 "SEGMENT_INVALID",
                 STATION_SHEET,
-                f"{STATION_SHEET}, row {row}: reference price segment is {raw_segment!r}. "
-                "Use A, B, C or D.",
+                f"{STATION_SHEET}, row {row}: reference price segment is {_found(raw_segment)}. "
+                f"Allowed values are {SEGMENT_ALLOWED}, written exactly like that, in capital "
+                "letters and with no extra spaces.",
                 row=row,
-                entity_id=raw_segment,
+                entity_id=_text(raw_segment),
                 field="segment",
             )
             continue
-        segment = Segment(raw_segment.upper())
+        segment = Segment(raw_segment)
 
         if segment in found or segment in first_row:
             issues.add(

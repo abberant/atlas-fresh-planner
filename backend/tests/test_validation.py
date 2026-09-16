@@ -14,7 +14,15 @@ CASES = [
     ("missing farm id", [("Farms", "A9", None)], "ID_MISSING", "Farms", None),
     ("missing client id", [("Clients", "A7", None)], "ID_MISSING", "Clients", None),
     ("invalid acceptance mode", [("Clients", "C6", "MAYBE")], "MODE_INVALID", "Clients", "C02"),
+    ("lower case acceptance mode", [("Clients", "C6", "minimum")], "MODE_INVALID", "Clients", "C02"),
+    ("acceptance mode with spaces", [("Clients", "C6", " MINIMUM ")], "MODE_INVALID", "Clients", "C02"),
+    ("acceptance mode mixed case", [("Clients", "C6", "Exact")], "MODE_INVALID", "Clients", "C02"),
+    ("empty acceptance mode", [("Clients", "C6", None)], "MODE_INVALID", "Clients", "C02"),
     ("invalid requested segment", [("Clients", "D8", "E")], "SEGMENT_INVALID", "Clients", "C04"),
+    ("lower case requested segment", [("Clients", "D8", "b")], "SEGMENT_INVALID", "Clients", "C04"),
+    ("requested segment with a space", [("Clients", "D8", "B ")], "SEGMENT_INVALID", "Clients", "C04"),
+    ("numeric requested segment", [("Clients", "D8", 2)], "SEGMENT_INVALID", "Clients", "C04"),
+    ("lower case reference price segment", [("Station", "A19", "c")], "SEGMENT_INVALID", "Station", "c"),
     (
         "mix sum 0.9",
         [("Farms", "D11", 0.0)],  # F07 expected_A_pct 0.1 -> 0.0, mix sums to 0.9
@@ -102,3 +110,41 @@ def test_unreadable_file_is_reported(tmp_path: Path) -> None:
     source, issues = validate_workbook(path)
     assert source is None
     assert [issue.code for issue in issues] == ["FILE_UNREADABLE"]
+
+
+STRICT_CASES = [
+    ("acceptance_mode", ("Clients", "C6", "minimum"), "MODE_INVALID", "'minimum'", "EXACT or MINIMUM"),
+    ("acceptance_mode", ("Clients", "C6", " MINIMUM "), "MODE_INVALID", "' MINIMUM '", "EXACT or MINIMUM"),
+    ("acceptance_mode", ("Clients", "C6", None), "MODE_INVALID", "empty", "EXACT or MINIMUM"),
+    ("requested_segment", ("Clients", "D8", "b"), "SEGMENT_INVALID", "'b'", "A, B, C or D"),
+    ("requested_segment", ("Clients", "D8", "B "), "SEGMENT_INVALID", "'B '", "A, B, C or D"),
+    ("requested_segment", ("Clients", "D8", 2), "SEGMENT_INVALID", "2", "A, B, C or D"),
+]
+
+
+@pytest.mark.parametrize(
+    "field,edit,code,shown_value,allowed",
+    STRICT_CASES,
+    ids=[f"{case[0]} {case[1][2]!r}" for case in STRICT_CASES],
+)
+def test_mode_and_segment_are_strict(
+    edited_workbook, field: str, edit, code: str, shown_value: str, allowed: str
+) -> None:
+    """Spaces and letter case are never corrected. The message shows what was found."""
+    source, issues = validate_workbook(edited_workbook(edit))
+
+    assert source is None
+    matching = [issue for issue in issues if issue.code == code and issue.field == field]
+    assert matching, f"expected {code} on {field}, got {[(i.code, i.field) for i in issues]}"
+
+    message = matching[0].message
+    assert shown_value in message, f"the message must show the value found: {message}"
+    assert allowed in message, f"the message must list the allowed values: {message}"
+
+
+def test_valid_mode_and_segment_are_accepted(seed_path) -> None:
+    """The seed workbook already uses the exact spelling, so it stays valid."""
+    source, issues = validate_workbook(seed_path)
+    assert issues == []
+    assert source is not None
+    assert {client.acceptance_mode.value for client in source.clients} == {"EXACT", "MINIMUM"}
