@@ -7,6 +7,7 @@ import ErrorBanner from './components/ErrorBanner'
 import Header, { type AppStatus } from './components/Header'
 import LoadingSkeleton from './components/LoadingSkeleton'
 import ValidationErrorPanel from './components/ValidationErrorPanel'
+import WhatChanged from './components/WhatChanged'
 import { NO_SELECTION, withSelection, type EntityKind, type Selection } from './lib/selection'
 
 interface FailureState {
@@ -117,6 +118,7 @@ export default function App() {
                 onSelect={handleSelect}
                 stale={status === 'error'}
               />
+              <WhatChanged plan={response.plan} selection={selection} onSelect={handleSelect} />
               <section
                 aria-labelledby="next-heading"
                 className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-slate-600"
@@ -125,8 +127,7 @@ export default function App() {
                   Detail views
                 </h2>
                 <p className="mt-1 text-sm">
-                  The segment impact cards and the Production, Commercial and Allocations tabs are the
-                  next step.
+                  The Production, Commercial and Allocations tabs are the next step.
                 </p>
               </section>
             </>
