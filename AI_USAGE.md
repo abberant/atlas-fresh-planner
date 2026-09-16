@@ -23,6 +23,7 @@ implemented the milestones and reported what it checked.
 | M2 planning engine | pure engine, KPIs, comparisons, risk links, invariants, 48 tests | asked for the baseline to be proven value by value against section 7 before any UI work |
 | M3 API | plan endpoint, error handlers, plan cache, 10 tests | asked for the capacity 450 check on a temporary copy |
 | M4 workspace UI | API client, the four states, decision summary, segment impact section, the three tabs | reworked the top of the page himself in the brief he gave: order of the cards, the sentence at the top, colour rules, the "needs attention" grouping; chose to keep highlight and scroll in the tables and filters only in Allocations; specified the two gap lines of the planned versus actual card |
+| UI review rounds | the reworked decision summary, the segment impact section, the tabs, then neutral cards with status carried by a badge | drove every round: card order and grouping, the colour rule, the two gap lines, the badge wording, no wrapping in the Commercial table |
 | M5 assistant | three questions, minimal context per question, the none, Ollama and Anthropic providers, grounding checks, engine summaries, the panel and its honest states, 28 tests | asked for section 10 to be followed exactly, for citations to reuse the clickable ids, and for the panel to sit on the right at 1440 px and collapse at 1024 px |
 
 ## What was verified, and how
@@ -80,15 +81,11 @@ implemented the milestones and reported what it checked.
 
 ## Time spent
 
-**About 1 hour of Abdellah's time so far.**
+_Abdellah to fill in before sending._
 
-That is the number that matters for this assessment, and it is the one he reported.
-The work went fast because `CLAUDE.md` was written first, so each milestone was one
-instruction and one review instead of a conversation.
-
-An earlier version of this file carried a per milestone table of hours. Claude Code had
-estimated those numbers rather than measured them, and they were wrong. They are removed.
-No time is estimated here.
+No time is estimated in this file. An earlier version carried a per milestone table of
+hours that Claude Code had guessed rather than measured, and it was wrong, so it was
+removed.
 
 ## Intentional omissions
 

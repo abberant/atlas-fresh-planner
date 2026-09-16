@@ -153,29 +153,25 @@ model, raise `AI_TIMEOUT_SECONDS` well above its default of 20, or use a small m
 model that cannot answer in time is not a failure of the product: the panel says the
 provider did not answer and offers the engine summary.
 
-Free and hosted, with Google AI Studio, which has a free tier:
+**Gemini, free and hosted.** This is the path that was tested, and it needs no install.
 
-```
-cp .env.example .env      # then set AI_PROVIDER=gemini and GEMINI_API_KEY
-```
+1. Get a free key at https://aistudio.google.com/apikey
+2. `cp .env.example .env`
+3. In `.env` set `AI_PROVIDER=gemini` and paste the key into `GEMINI_API_KEY=`
+4. Restart the server. `GET /api/health` then reports `"ai_configured": true`.
 
-Get a key at https://aistudio.google.com/apikey. Nothing is installed and nothing
-runs on your machine.
+`GEMINI_MODEL` defaults to `gemini-3.6-flash`. Model names on this API are retired
+over time, so if a call returns 404 the server log carries Google's own message naming
+the replacement, and you can point `GEMINI_MODEL` at it.
 
-Free and local, with [Ollama](https://ollama.com):
+**Ollama, free and local.** `ollama pull llama3.1`, then set `AI_PROVIDER=ollama`. Be
+aware it needs real memory: see the note below.
 
-```
-ollama pull llama3.1
-cp .env.example .env      # then set AI_PROVIDER=ollama
-```
+**Anthropic.** Set `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`.
 
-With an Anthropic key:
-
-```
-cp .env.example .env      # then set AI_PROVIDER=anthropic and ANTHROPIC_API_KEY
-```
-
-`AI_TIMEOUT_SECONDS` (20 by default) bounds every call. `.env` is never committed.
+`AI_TIMEOUT_SECONDS` (20 by default) bounds every call. `.env` is gitignored and no key
+is ever committed. To turn the assistant off again, set `AI_PROVIDER=none` or delete
+`.env`: the app stays fully usable and says that AI is not configured.
 
 ## What is deliberately not built
 
@@ -198,6 +194,20 @@ purpose, not forgotten.
 - No chart. Tables and cards came first, and the numbers are small enough to read.
 - No Docker, no CI, no live deployment. A clean clone with the commands above is the
   reproducibility path.
+
+## Reproducing the checks
+
+```
+make test                 # 146 tests
+```
+
+The baseline in the brief is asserted value by value in `backend/tests/test_baseline.py`,
+including the 43 allocation rows and the 4 residual rows, and the engine is run twice and
+compared byte for byte. No baseline number appears anywhere in `backend/app`.
+
+The clean clone path was tested end to end: clone into an empty folder, `make setup`,
+`make test`, `make build`, `make start`, then the API returns 500 t exported, 60 t local,
+EUR 549,500 export revenue and EUR 554,000 total value from the seed workbook.
 
 ## Known limitations
 
