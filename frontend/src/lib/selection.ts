@@ -30,3 +30,26 @@ export function withSelection(current: Selection, kind: EntityKind, id: string):
 export function isEmpty(selection: Selection): boolean {
   return !selection.farmId && !selection.clientId && !selection.segment
 }
+
+/** Set one filter to an exact value, or clear it with null. */
+export function setFilter(current: Selection, kind: EntityKind, id: string | null): Selection {
+  if (kind === 'farm') return { ...current, farmId: id }
+  if (kind === 'client') return { ...current, clientId: id }
+  return { ...current, segment: (id as Segment) ?? null }
+}
+
+export interface SelectionChip {
+  kind: EntityKind
+  id: string
+  label: string
+}
+
+export function selectionChips(selection: Selection): SelectionChip[] {
+  const chips: SelectionChip[] = []
+  if (selection.farmId) chips.push({ kind: 'farm', id: selection.farmId, label: `Farm ${selection.farmId}` })
+  if (selection.clientId)
+    chips.push({ kind: 'client', id: selection.clientId, label: `Client ${selection.clientId}` })
+  if (selection.segment)
+    chips.push({ kind: 'segment', id: selection.segment, label: `Segment ${selection.segment}` })
+  return chips
+}

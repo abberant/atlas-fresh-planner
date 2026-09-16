@@ -6,13 +6,35 @@ import EmptyState from './components/EmptyState'
 import ErrorBanner from './components/ErrorBanner'
 import Header, { type AppStatus } from './components/Header'
 import LoadingSkeleton from './components/LoadingSkeleton'
+import SelectionBar from './components/SelectionBar'
+import Tabs, { type TabDefinition } from './components/Tabs'
 import ValidationErrorPanel from './components/ValidationErrorPanel'
 import WhatChanged from './components/WhatChanged'
-import { NO_SELECTION, withSelection, type EntityKind, type Selection } from './lib/selection'
+import {
+  NO_SELECTION,
+  setFilter,
+  TAB_FOR_KIND,
+  withSelection,
+  type EntityKind,
+  type Selection,
+  type TabId,
+} from './lib/selection'
+import AllocationsView from './views/AllocationsView'
+import CommercialView from './views/CommercialView'
+import ProductionView from './views/ProductionView'
 
 interface FailureState {
   kind: ApiErrorKind
   message: string
+}
+
+function tabs(response: PlanResponse): TabDefinition[] {
+  const { plan } = response
+  return [
+    { id: 'production', label: 'Production', badge: `${plan.farm_comparison.length} farms` },
+    { id: 'commercial', label: 'Commercial', badge: `${plan.kpis.at_risk_clients} at risk` },
+    { id: 'allocations', label: 'Allocations', badge: `${plan.allocations.length} rows` },
+  ]
 }
 
 export default function App() {
@@ -24,6 +46,7 @@ export default function App() {
   const [failure, setFailure] = useState<FailureState | null>(null)
   const [message, setMessage] = useState('')
   const [selection, setSelection] = useState<Selection>(NO_SELECTION)
+  const [activeTab, setActiveTab] = useState<TabId>('commercial')
 
   const load = useCallback(async () => {
     setStatus('loading')
@@ -63,10 +86,17 @@ export default function App() {
     }
   }, [])
 
-  /** One click on any ID selects it. The matching tab opens with it in the next step. */
+  /** One click on any id selects it and opens the view that explains it. */
   const handleSelect = useCallback((kind: EntityKind, id: string) => {
     setSelection((current) => withSelection(current, kind, id))
+    setActiveTab(TAB_FOR_KIND[kind])
   }, [])
+
+  const handleSetFilter = useCallback((kind: EntityKind, id: string | null) => {
+    setSelection((current) => setFilter(current, kind, id))
+  }, [])
+
+  const clearFilters = useCallback(() => setSelection(NO_SELECTION), [])
 
   const loading = status === 'loading'
 
@@ -119,16 +149,42 @@ export default function App() {
                 stale={status === 'error'}
               />
               <WhatChanged plan={response.plan} selection={selection} onSelect={handleSelect} />
-              <section
-                aria-labelledby="next-heading"
-                className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-slate-600"
-              >
-                <h2 id="next-heading" className="text-base font-semibold text-slate-800">
-                  Detail views
+              <section aria-labelledby="detail-heading">
+                <h2 id="detail-heading" className="text-lg font-semibold text-slate-900">
+                  Follow the detail
                 </h2>
-                <p className="mt-1 text-sm">
-                  The Production, Commercial and Allocations tabs are the next step.
-                </p>
+                <div className="mt-2 mb-3">
+                  <SelectionBar
+                    selection={selection}
+                    onSetFilter={handleSetFilter}
+                    onClear={clearFilters}
+                  />
+                </div>
+                <Tabs tabs={tabs(response)} active={activeTab} onChange={setActiveTab}>
+                  {activeTab === 'production' ? (
+                    <ProductionView
+                      plan={response.plan}
+                      selection={selection}
+                      onSelect={handleSelect}
+                    />
+                  ) : null}
+                  {activeTab === 'commercial' ? (
+                    <CommercialView
+                      plan={response.plan}
+                      selection={selection}
+                      onSelect={handleSelect}
+                    />
+                  ) : null}
+                  {activeTab === 'allocations' ? (
+                    <AllocationsView
+                      plan={response.plan}
+                      selection={selection}
+                      onSelect={handleSelect}
+                      onSetFilter={handleSetFilter}
+                      onClearFilters={clearFilters}
+                    />
+                  ) : null}
+                </Tabs>
               </section>
             </>
           ) : null}

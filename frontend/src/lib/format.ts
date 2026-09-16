@@ -52,3 +52,14 @@ export function joinWithAnd(parts: string[]): string {
   if (parts.length === 1) return parts[0]
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
+
+/** A plain number with thousands separators, for table cells whose header carries the unit. */
+export function formatNumber(value: number): string {
+  return NUMBER.format(Math.round(value))
+}
+
+/** "none", "+1 level", "+2 levels" */
+export function formatUpgrade(levels: number): string {
+  if (levels <= 0) return 'none'
+  return `+${levels} ${levels === 1 ? 'level' : 'levels'}`
+}

@@ -79,5 +79,5 @@ export function reasonInPlainWords(
 ): string {
   return reason === 'STATION_CAPACITY_REACHED'
     ? `Station full at ${formatTonnes(capacityT)}`
-    : `Not enough Segment ${requestedSegment} today`
+    : `Not enough Segment ${requestedSegment}`
 }
