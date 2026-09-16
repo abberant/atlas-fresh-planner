@@ -6,13 +6,22 @@ export type CardSize = 'lead' | 'support'
 interface KpiCardProps {
   label: string
   value: string
+  /** Small note next to the value, for a figure that supports it. */
+  valueNote?: ReactNode
   detail?: ReactNode
   tone?: Tone
   /** "lead" cards carry the story, "support" cards carry context with less weight. */
   size?: CardSize
 }
 
-export default function KpiCard({ label, value, detail, tone = 'neutral', size = 'lead' }: KpiCardProps) {
+export default function KpiCard({
+  label,
+  value,
+  valueNote,
+  detail,
+  tone = 'neutral',
+  size = 'lead',
+}: KpiCardProps) {
   const lead = size === 'lead'
   const attention = tone === 'attention'
 
@@ -40,13 +49,16 @@ export default function KpiCard({ label, value, detail, tone = 'neutral', size =
         ) : null}
       </div>
 
-      <p
-        className={[
-          'mt-1.5 font-semibold tabular-nums text-slate-900',
-          lead ? 'text-3xl' : 'text-xl',
-        ].join(' ')}
-      >
-        {value}
+      <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
+        <span
+          className={[
+            'font-semibold tabular-nums text-slate-900',
+            lead ? 'text-3xl' : 'text-xl',
+          ].join(' ')}
+        >
+          {value}
+        </span>
+        {valueNote ? <span className="text-sm text-slate-600">{valueNote}</span> : null}
       </p>
 
       {detail ? (

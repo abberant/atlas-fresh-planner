@@ -81,3 +81,61 @@ export function reasonInPlainWords(
     ? `Station full at ${formatTonnes(capacityT)}`
     : `Not enough Segment ${requestedSegment}`
 }
+
+/** One segment gap, with the clients it leaves short. */
+export interface SegmentGap {
+  segment: Segment
+  varianceT: number
+  clientIds: string[]
+}
+
+export interface SegmentGapLines {
+  /** The gap that explains a client shortage, or the biggest gap when none does. */
+  main: SegmentGap | null
+  /** The biggest gap overall, only when it is a different segment from the main line. */
+  secondary: SegmentGap | null
+}
+
+/** Clients left short by a quality shortage, by segment. Capacity shortages are not a gap. */
+function clientsShortBySegment(plan: PlanResult): Map<Segment, string[]> {
+  const bySegment = new Map<Segment, string[]>()
+  for (const link of plan.risk_links) {
+    if (link.reason !== 'INSUFFICIENT_COMPATIBLE_SEGMENT') continue
+    for (const segment of link.segments_involved) {
+      const ids = bySegment.get(segment) ?? []
+      if (!ids.includes(link.client_id)) ids.push(link.client_id)
+      bySegment.set(segment, ids)
+    }
+  }
+  return bySegment
+}
+
+/**
+ * The gap worth reading first is the biggest one that actually leaves a client
+ * short. The biggest gap overall is shown after it only when it is another
+ * segment, because a big gap that hits nobody is not a problem today.
+ */
+export function segmentGapLines(plan: PlanResult): SegmentGapLines {
+  const shortBySegment = clientsShortBySegment(plan)
+  const asGap = (row: SegmentComparison): SegmentGap => ({
+    segment: row.segment,
+    varianceT: row.variance_t,
+    clientIds: shortBySegment.get(row.segment) ?? [],
+  })
+
+  const below = plan.segment_comparison.filter((row) => row.variance_t < 0)
+  if (below.length === 0) return { main: null, secondary: null }
+
+  const worstOverall = below.reduce((worst, row) => (row.variance_t < worst.variance_t ? row : worst))
+  const hitting = below.filter((row) => (shortBySegment.get(row.segment) ?? []).length > 0)
+
+  if (hitting.length === 0) {
+    return { main: asGap(worstOverall), secondary: null }
+  }
+
+  const worstHitting = hitting.reduce((worst, row) => (row.variance_t < worst.variance_t ? row : worst))
+  return {
+    main: asGap(worstHitting),
+    secondary: worstOverall.segment === worstHitting.segment ? null : asGap(worstOverall),
+  }
+}

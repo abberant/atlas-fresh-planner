@@ -1,7 +1,7 @@
 import type { PlanResult } from '../api/types'
 import { formatEur, formatPercent, formatSignedTonnes, formatTonnes, varianceMark } from '../lib/format'
 import type { EntityKind, Selection } from '../lib/selection'
-import { buildSummarySentence, groupAtRiskClients, worstSegment } from '../lib/summary'
+import { buildSummarySentence, groupAtRiskClients, segmentGapLines, type SegmentGap } from '../lib/summary'
 import IdLink from './IdLink'
 import KpiCard from './KpiCard'
 
@@ -12,12 +12,60 @@ interface DecisionSummaryProps {
   stale?: boolean
 }
 
+
+/** "Segment A: -11.7 t leaves C02 short", or "no client affected" when it hurts nobody. */
+function GapLine({
+  gap,
+  selection,
+  onSelect,
+  small = false,
+}: {
+  gap: SegmentGap
+  selection: Selection
+  onSelect: (kind: EntityKind, id: string) => void
+  small?: boolean
+}) {
+  return (
+    <p className={small ? 'text-xs text-slate-600' : undefined}>
+      <IdLink
+        kind="segment"
+        id={gap.segment}
+        onSelect={onSelect}
+        active={selection.segment === gap.segment}
+      >
+        Segment {gap.segment}
+      </IdLink>
+      : {formatSignedTonnes(gap.varianceT)}
+      {gap.clientIds.length === 0 ? (
+        <span>, no client affected</span>
+      ) : (
+        <>
+          {' '}
+          leaves{' '}
+          {gap.clientIds.map((clientId, index) => (
+            <span key={clientId}>
+              {index > 0 ? (index === gap.clientIds.length - 1 ? ' and ' : ', ') : ''}
+              <IdLink
+                kind="client"
+                id={clientId}
+                onSelect={onSelect}
+                active={selection.clientId === clientId}
+              />
+            </span>
+          ))}{' '}
+          short
+        </>
+      )}
+    </p>
+  )
+}
+
 export default function DecisionSummary({ plan, selection, onSelect, stale = false }: DecisionSummaryProps) {
   const { kpis } = plan
   const variance = kpis.actual_received_t - kpis.expected_plan_total_t
   const mark = varianceMark(variance)
   const riskGroups = groupAtRiskClients(plan)
-  const worst = worstSegment(plan)
+  const gaps = segmentGapLines(plan)
 
   const riskDetail =
     riskGroups.length === 0 ? (
@@ -84,26 +132,22 @@ export default function DecisionSummary({ plan, selection, onSelect, stale = fal
         <KpiCard
           label="Planned vs actual"
           value={`${formatTonnes(kpis.actual_received_t)} of ${formatTonnes(kpis.expected_plan_total_t)}`}
-          detail={
+          valueNote={
             <>
-              <p>
-                {formatSignedTonnes(variance)} <span aria-hidden="true">{mark.arrow}</span> {mark.label}
-              </p>
-              {worst ? (
-                <p className="text-slate-600">
-                  Biggest gap{' '}
-                  <IdLink
-                    kind="segment"
-                    id={worst.segment}
-                    onSelect={onSelect}
-                    active={selection.segment === worst.segment}
-                  >
-                    Segment {worst.segment}
-                  </IdLink>
-                  : {formatSignedTonnes(worst.variance_t)}
-                </p>
-              ) : null}
+              {formatSignedTonnes(variance)} <span aria-hidden="true">{mark.arrow}</span> {mark.label}
             </>
+          }
+          detail={
+            gaps.main ? (
+              <>
+                <GapLine gap={gaps.main} selection={selection} onSelect={onSelect} />
+                {gaps.secondary ? (
+                  <GapLine gap={gaps.secondary} selection={selection} onSelect={onSelect} small />
+                ) : null}
+              </>
+            ) : (
+              <p>Every quality segment met its plan.</p>
+            )
           }
         />
       </div>
