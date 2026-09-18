@@ -39,17 +39,26 @@ make build    # production build of the frontend
 make start    # one server: FastAPI serves the API and the built frontend on :8000
 ```
 
-Without make:
+Without make. Use a Python from the supported range, since these commands do not check
+it for you:
 
 ```
-python3 -m venv backend/.venv
+# setup, once
+python3.13 -m venv backend/.venv          # or python3.11 / python3.12
 backend/.venv/bin/pip install -r backend/requirements.txt
-cd frontend && npm ci
+cd frontend && npm ci && cd ..
 
+# develop, two terminals
 cd backend && .venv/bin/python -m uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev
+
+# test and build
 cd backend && .venv/bin/python -m pytest -q
 cd frontend && npm run build
+
+# one server, API and built frontend together on http://localhost:8000
+cd frontend && npm run build && cd ..
+cd backend && .venv/bin/python -m uvicorn app.main:app --port 8000
 ```
 
 No `.env` file is needed. The AI assistant defaults to off and the app works without it.
