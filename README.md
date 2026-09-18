@@ -8,7 +8,24 @@ client and never writes anywhere.
 
 ## Prerequisites
 
-Python 3.11 or newer, Node.js 20 or newer, npm. Tested with Python 3.12 and Node 24.
+| Need | Version | Notes |
+|---|---|---|
+| Python | 3.11, 3.12 or 3.13 | **Not 3.14 or newer.** The pinned pydantic has no prebuilt wheel for it, so installing would try to compile from source. `make setup` checks this and tells you what to do. |
+| Node.js | 20, or 22 and newer | Vite does not support the odd numbered releases in between. |
+| npm | any recent | `npm ci` needs the committed `package-lock.json`. |
+| make | optional | Every command is also written out below. |
+
+Verified on Python 3.12 and 3.13, and on Node 24, on macOS.
+
+If your default `python3` is not in the supported range, point make at one that is,
+without changing anything else:
+
+```
+make setup PYTHON=python3.13
+```
+
+The commands use Unix paths (`backend/.venv/bin/...`). On Windows the equivalent is
+`backend\.venv\Scripts\...`, or use WSL.
 
 ## Start it
 
@@ -16,6 +33,7 @@ Python 3.11 or newer, Node.js 20 or newer, npm. Tested with Python 3.12 and Node
 make setup    # python venv and backend dependencies, npm ci in frontend
 make dev      # backend on :8000, frontend on :5173, open http://localhost:5173
               # if 5173 is already used, Vite picks the next free port and prints it
+              # port 8000 must be free, it is where the API and the /api proxy point
 make test     # backend tests
 make build    # production build of the frontend
 make start    # one server: FastAPI serves the API and the built frontend on :8000
